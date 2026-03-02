@@ -14,9 +14,9 @@ SimilarityEngine への受け渡しは呼び出し側で行う（依存注入）
     assets/
     ├── embeddings/
     │   ├── static_vectors.npy   # [N, 300] Word2Vec float32
-    │   └── sbert_vectors.npy    # [N, 768] SBERT float32
+    │   └── sbert_vectors.npy    # [N, 384] SBERT float32
     ├── metadata/
-    │   ├── vocab.json           # {"word": index, ...}
+    │   ├── vocab.json           # {"vocab": [...]} リスト形式（ローダーが辞書に変換）
     │   └── vocab_pos.npy        # [N] 品詞ラベル配列
     └── manifest.json            # shape / dtype の期待値
 """
@@ -88,7 +88,7 @@ class EmbeddingLoader:
         emb_dir:         embeddings/ サブディレクトリのパス
         meta_dir:        metadata/ サブディレクトリのパス
         static_vectors:  Word2Vec 埋め込み行列 shape (N, 300)
-        sbert_vectors:   SBERT 埋め込み行列 shape (N, 768)
+        sbert_vectors:   SBERT 埋め込み行列 shape (N, 384)
         vocab:           単語 → インデックスの辞書 {"word": index}
         pos:             品詞ラベル配列 shape (N,)
         manifest:        manifest.json の内容
@@ -192,8 +192,8 @@ class EmbeddingLoader:
     def _load_metadata(self) -> None:
         """vocab.json と vocab_pos.npy を読み込む。
 
-        vocab.json の形式: {"word": index, ...}
-        インデックスは 0 始まりの整数。
+        vocab.json の形式: {"vocab": ["word0", "word1", ...]} リスト形式。
+        読み込み後に {"word": index, ...} 形式の辞書へ自動変換する。
 
         Raises:
             FileNotFoundError: メタデータファイルが存在しない場合。

@@ -10,7 +10,7 @@ EmbeddingLoader の単体テスト。
     - FileNotFoundError: ファイル欠落
 
 テスト設計:
-    実際の 50,000 語彙資産には依存しない。
+    実際の 83,823 語彙資産には依存しない。
     tempfile.TemporaryDirectory で小規模モックデータを生成してテストする。
 
 実行方法:

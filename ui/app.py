@@ -59,7 +59,7 @@ def load_all_engines() -> tuple[EmbeddingLoader, SimilarityEngine, SimilarityEng
     """EmbeddingLoader と 2 つの SimilarityEngine を初期化する。
 
     @st.cache_resource により、アプリ起動後に1回だけ実行される。
-    50,000 語彙 × 300〜768 次元のベクトルをメモリに保持するため、
+    83,823 語彙 × 300/384 次元のベクトルをメモリに保持するため、
     再初期化を避けることで応答速度を確保する。
 
     Returns:

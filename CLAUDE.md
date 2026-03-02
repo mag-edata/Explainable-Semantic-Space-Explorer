@@ -27,11 +27,11 @@
 ```
 assets/
 ├── embeddings/
-│   ├── static_vectors.npy    # [50000, 300]  Word2Vec  float32
-│   └── sbert_vectors.npy     # [50000, 768]  SBERT     float32
+│   ├── static_vectors.npy    # [83823, 300]  Word2Vec  float32
+│   └── sbert_vectors.npy     # [83823, 384]  SBERT     float32
 ├── metadata/
-│   ├── vocab.json            # {"word": index, ...}  ← Dict[str, int]
-│   └── vocab_pos.npy         # [50000]  品詞ラベル配列  ← ファイル名注意（pos.npy ではない）
+│   ├── vocab.json            # {"vocab": ["word0", ...]}  ← リスト形式（ローダーが Dict[str,int] に変換）
+│   └── vocab_pos.npy         # [83823]  品詞ラベル配列  ← ファイル名注意（pos.npy ではない）
 └── manifest.json             # shape / dtype の期待値
 ```
 
@@ -115,10 +115,10 @@ EmbeddingLoader(asset_root: Path)
 
 | 変数 | 型 | 内容 |
 |---|---|---|
-| `static_vectors` | `np.ndarray` | shape (50000, 300) |
-| `sbert_vectors` | `np.ndarray` | shape (50000, 768) |
-| `vocab` | `Dict[str, int]` | `{"word": index}` |
-| `pos` | `np.ndarray` | shape (50000,) |
+| `static_vectors` | `np.ndarray` | shape (83823, 300) |
+| `sbert_vectors` | `np.ndarray` | shape (83823, 384) |
+| `vocab` | `Dict[str, int]` | `{"word": index}`（ローダーがリスト形式から変換） |
+| `pos` | `np.ndarray` | shape (83823,) |
 | `manifest` | `dict` | manifest.json の中身 |
 
 ---

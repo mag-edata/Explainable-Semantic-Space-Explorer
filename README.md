@@ -51,11 +51,11 @@ venv/bin/python3 -m streamlit run ui/app.py
 Explainable-Semantic-Space-Explorer/
 ├── assets/                        # 埋め込みベクトル・メタデータ（変更禁止）
 │   ├── embeddings/
-│   │   ├── static_vectors.npy     # Word2Vec  shape (50000, 300)
-│   │   └── sbert_vectors.npy      # SBERT     shape (50000, 768)
+│   │   ├── static_vectors.npy     # Word2Vec  shape (83823, 300)
+│   │   └── sbert_vectors.npy      # SBERT     shape (83823, 384)
 │   ├── metadata/
-│   │   ├── vocab.json             # {"word": index, ...}
-│   │   └── vocab_pos.npy          # 品詞ラベル配列 shape (50000,)
+│   │   ├── vocab.json             # {"vocab": ["word0", ...]}  ← リスト形式（ローダーが辞書に変換）
+│   │   └── vocab_pos.npy          # 品詞ラベル配列 shape (83823,)
 │   └── manifest.json              # shape / dtype の整合チェック用
 │
 ├── core/                          # 純粋ロジック層（Streamlit 禁止）
