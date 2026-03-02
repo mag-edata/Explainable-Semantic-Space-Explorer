@@ -18,6 +18,7 @@
 | scikit-learn | 1.8.0 |
 | umap-learn | 0.5.11 |
 | streamlit | 1.54.0 |
+| altair | 6.0.0 |
 
 ---
 
@@ -37,8 +38,9 @@ pip install -r requirements.txt
 ## 起動方法
 
 ```bash
-# Streamlit アプリを起動（未実装 → 実装後に有効）
+# Streamlit アプリを起動
 venv/bin/python3 -m streamlit run ui/app.py
+# → http://localhost:8501 がブラウザで開く
 ```
 
 ---
@@ -65,12 +67,15 @@ Explainable-Semantic-Space-Explorer/
 │
 ├── analysis/                      # 可視化前処理層
 │   ├── cluster.py                 # KMeans クラスタリング（コサイン距離）
-│   └── projection.py              # PCA / UMAP による 2D 投影（未実装）
+│   └── projection.py              # PCA / UMAP による 2D 投影
 │
 ├── ui/
-│   └── app.py                     # Streamlit UI（未実装）
+│   └── app.py                     # Streamlit UI（4タブ）
 │
-├── tests/                         # テスト群（未実装）
+├── tests/                         # 単体テスト群（71テスト）
+│   ├── test_distance_metrics.py   # DistanceMetrics の検証（29テスト）
+│   ├── test_similarity_engine.py  # SimilarityEngine の検証（26テスト）
+│   └── test_embedding_loader.py   # EmbeddingLoader の検証（16テスト）
 ├── docs/
 │   └── ARCHITECTURE_SPEC.md       # 詳細アーキテクチャ仕様
 ├── requirements.txt
@@ -181,6 +186,28 @@ print(f"計算式:     {exp['formula']}")
 
 ---
 
+## テストの実行
+
+Python 標準の `unittest` を使用。pytest 不要。
+
+```bash
+# 全テストを実行
+venv/bin/python3 -m unittest discover tests/ -v
+
+# 個別ファイルを実行
+venv/bin/python3 -m unittest tests/test_distance_metrics.py -v
+venv/bin/python3 -m unittest tests/test_similarity_engine.py -v
+venv/bin/python3 -m unittest tests/test_embedding_loader.py -v
+```
+
+期待される出力:
+```
+Ran 71 tests in 0.063s
+OK
+```
+
+---
+
 ## 制約
 
 | 制約 | 理由 |
@@ -193,12 +220,12 @@ print(f"計算式:     {exp['formula']}")
 
 ---
 
-## 進捗状況
+## 実装状況
 
-| コンポーネント | 状態 |
-|---|---|
-| `core/` 全ファイル | ✅ 完成 |
-| `analysis/cluster.py` | ✅ 完成 |
-| `analysis/projection.py` | 実装中 |
-| `ui/app.py` | 未実装 |
-| `tests/` | 未実装 |
+| コンポーネント | 状態 | 備考 |
+|---|---|---|
+| `core/` 全ファイル | ✅ 完成 | 5ファイル |
+| `analysis/cluster.py` | ✅ 完成 | コサイン KMeans |
+| `analysis/projection.py` | ✅ 完成 | PCA / UMAP |
+| `ui/app.py` | ✅ 完成 | Streamlit 4タブ |
+| `tests/` | ✅ 完成 | 71テスト全通過 |
