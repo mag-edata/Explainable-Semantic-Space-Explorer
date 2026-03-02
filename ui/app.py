@@ -476,7 +476,7 @@ def main() -> None:
                     "クエリ:N",
                     scale=alt.Scale(
                         domain=["★ クエリ", "近傍語"],
-                        range=["cross", "circle"],
+                        range=["star", "circle"],
                     ),
                 ),
                 tooltip=["単語", "類似度", "クラスタ", "クエリ"],
