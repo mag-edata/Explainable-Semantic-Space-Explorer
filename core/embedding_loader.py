@@ -208,7 +208,16 @@ class EmbeddingLoader:
                 )
 
         with open(vocab_path, "r", encoding="utf-8") as f:
-            self.vocab = json.load(f)
+            raw = json.load(f)
+
+        # vocab.json が {"vocab": [word0, word1, ...]} 形式の場合はリストを辞書に変換する
+        # 期待する形式は {"word": index, ...} (Dict[str, int])
+        if isinstance(raw, dict) and "vocab" in raw and isinstance(raw["vocab"], list):
+            word_list = raw["vocab"]
+            self.vocab = {word: idx for idx, word in enumerate(word_list)}
+            logger.debug("vocab.json をリスト形式から辞書形式に変換しました (件数=%d)", len(self.vocab))
+        else:
+            self.vocab = raw
 
         self.pos = np.load(pos_path)
 
