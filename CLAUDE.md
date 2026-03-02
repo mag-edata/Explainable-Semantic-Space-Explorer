@@ -261,3 +261,19 @@ tests/      ██████  3/3 完成（100%）  ← 71テスト全通過
 venv/bin/python3 -m unittest discover tests/ -v
 # → 71 tests in 0.063s  OK
 ```
+
+---
+
+## 既知の課題（TODO）
+
+### [UI] 投影・クラスタタブ: クエリ語マーカーの凡例と図の不一致
+
+- **ファイル**: `ui/app.py`（投影・クラスタタブの散布図）
+- **現象**: `alt.Shape` + `alt.Scale(domain, range)` でクエリ語を `"cross"` にしているが、凡例と図上マーカーが一致しない
+- **試みた失敗策**:
+  - `"star"` → Vega-Lite の無効値、凡例が消える
+  - チャートをレイヤー分割 → 描画自体が消える
+- **現在**: `range=["cross", "circle"]` で保留
+- **次の候補**:
+  - `shape` エンコーディングを廃止し `size` + `color` でクエリを強調
+  - Vega-Lite SVG パス文字列を `range` に直接渡す

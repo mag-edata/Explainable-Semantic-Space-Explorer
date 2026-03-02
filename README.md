@@ -229,3 +229,20 @@ OK
 | `analysis/projection.py` | ✅ 完成 | PCA / UMAP |
 | `ui/app.py` | ✅ 完成 | Streamlit 4タブ |
 | `tests/` | ✅ 完成 | 71テスト全通過 |
+
+---
+
+## 既知の課題
+
+### [UI] 投影・クラスタタブ: クエリ語マーカーの凡例と図の不一致
+
+- **場所**: `ui/app.py` — 投影・クラスタタブの散布図
+- **現象**: Altair の `shape` エンコーディング（`alt.Shape` + `alt.Scale(domain, range)`）でクエリ語に `"cross"` を指定しているが、凡例の表示と図上のマーカー形状が一致しないことがある
+- **試みた対策**:
+  - `range=["star", "circle"]` → `"star"` は Vega-Lite の無効値のため凡例が消滅
+  - チャートをレイヤー分割（近傍語・クエリ語を別 `alt.Chart`）→ 描画自体が消えた
+- **現在の状態**: `range=["cross", "circle"]` に戻して保留中
+- **候補解決策**:
+  - Altair の `mark_rule` / `mark_point` を組み合わせてクエリ点を別途オーバーレイする
+  - `shape` エンコーディングを廃止し、`size` と `color` だけでクエリを目立たせる
+  - Vega-Lite の SVG パス文字列を `range` に直接渡す

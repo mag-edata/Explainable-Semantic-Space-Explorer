@@ -459,7 +459,7 @@ def main() -> None:
                 "単語": target_words,
                 "クラスタ": [str(c) for c in proj_result.cluster_labels.tolist()],
                 "類似度": [round(sim_map.get(w, 0.0), 4) for w in target_words],
-                "クエリ": ["★ クエリ" if w == query_word else "近傍語" for w in target_words],
+                "クエリ": ["✕ クエリ" if w == query_word else "近傍語" for w in target_words],
             }
         )
 
@@ -475,8 +475,8 @@ def main() -> None:
                 shape=alt.Shape(
                     "クエリ:N",
                     scale=alt.Scale(
-                        domain=["★ クエリ", "近傍語"],
-                        range=["star", "circle"],
+                        domain=["✕ クエリ", "近傍語"],
+                        range=["cross", "circle"],
                     ),
                 ),
                 tooltip=["単語", "類似度", "クラスタ", "クエリ"],
