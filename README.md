@@ -31,6 +31,10 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 
 # 依存パッケージのインストール
 pip install -r requirements.txt
+
+# NLTK データのダウンロード（資産ファイル生成に必要）
+python -c "import nltk; nltk.download('brown')"
+python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
 ```
 
 ---
