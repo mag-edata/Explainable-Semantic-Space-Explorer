@@ -277,6 +277,37 @@ venv/bin/python3 -m unittest discover tests/ -v
 
 ---
 
+## scripts/ 組み込み計画（PENDING）
+
+> **2026-03-03 記録**
+
+`tmp/` の資産生成スクリプト群を `scripts/` として正式統合する計画を策定済み。
+詳細: `docs/SCRIPTS_INTEGRATION_PLAN.md`
+
+**ブロッカー:** `HuggingFace オンラインダウンロード禁止` 制約の解除待ち。
+
+- `gen_wiki_vocab.py` → `datasets` 経由で Simple Wikipedia をダウンロード（セットアップ時のみ）
+- `export_sbert_vectors.py` → `all-MiniLM-L6-v2` モデルをダウンロード（セットアップ時のみ）
+
+制約解除後、以下を実装する:
+
+```
+scripts/
+├── __init__.py
+├── paths.py               # assets/ 構成に合わせて書き直し
+├── token_definition.py
+├── tokenizer.py
+├── gen_brown_vocab.py
+├── gen_wiki_vocab.py
+├── merge_vocab.py
+├── export_static_vectors.py
+├── export_sbert_vectors.py
+├── export_vocab_pos.py
+└── gen_manifest.py        # 新規（manifest.json 生成）
+```
+
+---
+
 ## 既知の課題（TODO）
 
 ### [UI] 投影・クラスタタブ: クエリ語マーカーの凡例と図の不一致
