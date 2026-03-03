@@ -22,6 +22,19 @@
 
 ---
 
+## 資産ファイルの生成前提（セットアップ）
+
+`assets/` の `.npy` / `.json` は Git 管理外（大容量のため）。
+別途以下を実行してから資産を生成・配置すること。
+
+```bash
+# NLTK データ（コーパス・品詞タガー）
+python -c "import nltk; nltk.download('brown')"
+python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
+```
+
+---
+
 ## 資産ファイル（既存・変更禁止）
 
 ```
