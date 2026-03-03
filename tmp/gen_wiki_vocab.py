@@ -1,0 +1,58 @@
+"""
+gen_wiki_vocab.py
+
+本モジュールは、
+Hugging Face DatasetsのSimple Wikipediaコーパスを用いて、
+自然言語処理タスク向けの語彙(vocabulary)を構築するための前処理関数を提供する。
+
+低頻度語を除外することでノイズを抑え、
+単語分散表現、分類モデル、言語モデル等の学習を安定させる設計とする。
+"""
+
+from datasets import load_dataset
+from collections import Counter
+from src.text.tokenizer import tokenize_text
+
+def gen_wiki_vocab(min_freq: int = 10) -> set[str]:
+    """
+    指定出現回数以上の単語のみを集めた語彙集合(vocabulary)を構築する。
+
+    Parameters
+    ----------
+    min_freq : int, optional
+        語彙に含める最小出現頻度。
+
+    Returns
+    -------
+    set[str]
+        出現回数条件を満たした単語のset。
+    """
+    
+    # Simple Wikipediaコーパスをロード
+    # 初回実行時はネットワークアクセスが必要
+    try:
+        dataset = load_dataset("pszemraj/simple_wikipedia", split="train")
+    except Exception as e:
+        raise RuntimeError(
+            "Failed to load Simple-Wikipedia-dataset. "
+            "Ensure datasets cache is available or "
+            "run load_dataset once with network access."
+        ) from e
+
+    # 単語の出現回数をカウント
+    counter: Counter[str] = Counter()
+
+    # 各記事を走査し、tokenizerを適用
+    for item in dataset:
+        text = item.get("text", "")
+        tokens = tokenize_text(text)
+        
+        counter.update(tokens)
+
+    # 出現回数がmin_freq以上の単語を返却
+    return {w for w, freq in counter.items() if freq >= min_freq}
+
+
+if __name__ == "__main__":
+    vocab = gen_wiki_vocab()
+    print(f"Wiki vocab size: {len(vocab)}")
