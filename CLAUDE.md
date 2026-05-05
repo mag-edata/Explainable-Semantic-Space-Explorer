@@ -6,7 +6,7 @@
 
 - static 埋め込み（Word2Vec）と文脈埋め込み（SBERT）の差異を数値で説明する
 - UIの美しさは目的外。**説明可能性・再現性が最優先**
-- 詳細仕様: `DOCS/ARCHITECTURE_SPEC.md`
+- 詳細仕様: `DOCS/要件定義書.md`
 
 ---
 
@@ -75,11 +75,11 @@ assets/ ──► core/ ──► analysis/ ──► ui/app.py
 
 ---
 
-## ディレクトリ構造（確定版）
+## ディレクトリ構造（現在の実態）
 
 ```
 Explainable-Semantic-Space-Explorer/
-├── assets/                      （上記参照）
+├── assets/                      （上記参照・Git管理外）
 ├── core/
 │   ├── __init__.py              ✅ 完成
 │   ├── embedding_loader.py      ✅ 完成
@@ -96,10 +96,26 @@ Explainable-Semantic-Space-Explorer/
 ├── tests/
 │   ├── __init__.py              ✅ 完成
 │   ├── test_distance_metrics.py ✅ 完成（29テスト）
-│   ├── test_similarity_engine.py✅ 完成（26テスト）
+│   ├── test_similarity_engine.py ✅ 完成（26テスト）
 │   └── test_embedding_loader.py ✅ 完成（16テスト）
+├── tmp/                         ⚠ scripts/ 統合待ち（PENDING）
+│   ├── paths.py
+│   ├── token_definition.py
+│   ├── tokenizer.py
+│   ├── gen_brown_vocab.py
+│   ├── gen_wiki_vocab.py
+│   ├── merge_vocab.py
+│   ├── export_static_vectors.py
+│   ├── export_sbert_vectors.py
+│   ├── export_vocab_pos.py
+│   └── note.md
 ├── DOCS/
-│   └── ARCHITECTURE_SPEC.md     ✅ 既存
+│   ├── 要件定義書.md
+│   ├── 基本設計書.md
+│   ├── 詳細設計書.md
+│   ├── テスト設計書.md
+│   ├── テスト項目書.md
+│   └── SCRIPTS_INTEGRATION_PLAN.md
 ├── CLAUDE.md                    ✅ 本ファイル
 └── requirements.txt             ✅ 作成済み
 ```

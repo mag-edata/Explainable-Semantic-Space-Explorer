@@ -289,14 +289,25 @@ models/*.model.wv.vectors.npy
 
 ---
 
-## 8. tmp/ の扱い
+## 8. 想定リスクと対策
+
+| リスク | 対策 |
+|---|---|
+| HuggingFace Hub からのダウンロードがネットワーク事情で失敗する | スクリプトに `try/except` + 明確なエラーメッセージを実装（`gen_wiki_vocab.py` には既に存在） |
+| `all-MiniLM-L6-v2` のリビジョンが変わり SBERT の再現性が崩れる | `SentenceTransformer("all-MiniLM-L6-v2", revision="<commit-hash>")` で revision を pin する（後続改善） |
+| `datasets` v3 系で API 破壊的変更が起きる | `requirements.txt` でメジャーバージョンを固定する。CI での再現確認が理想（将来課題） |
+| Word2Vec モデルファイル（`models/*.model`）の配布手段が未確定 | mag が手動配置するフローを `README.md` に明記する（本計画 section 5 の Step 1 を踏襲） |
+
+---
+
+## 10. tmp/ の扱い
 
 `tmp/` は組み込み完了後に削除推奨。
 削除は人間が実行すること（`rm -rf tmp/` または Git 管理から除外）。
 
 ---
 
-## 9. 作業ファイル一覧（新規作成・編集対象）
+## 11. 作業ファイル一覧（新規作成・編集対象）
 
 | 操作 | ファイル |
 |---|---|

@@ -53,12 +53,12 @@ venv/bin/python3 -m streamlit run ui/app.py
 
 ```
 Explainable-Semantic-Space-Explorer/
-├── assets/                        # 埋め込みベクトル・メタデータ（変更禁止）
+├── assets/                        # 埋め込みベクトル・メタデータ（変更禁止・Git管理外）
 │   ├── embeddings/
 │   │   ├── static_vectors.npy     # Word2Vec  shape (83823, 300)
 │   │   └── sbert_vectors.npy      # SBERT     shape (83823, 384)
 │   ├── metadata/
-│   │   ├── vocab.json             # {"vocab": ["word0", ...]}  ← リスト形式（ローダーが辞書に変換）
+│   │   ├── vocab.json             # 語彙リスト（ローダーが辞書に変換）
 │   │   └── vocab_pos.npy          # 品詞ラベル配列 shape (83823,)
 │   └── manifest.json              # shape / dtype の整合チェック用
 │
@@ -80,8 +80,27 @@ Explainable-Semantic-Space-Explorer/
 │   ├── test_distance_metrics.py   # DistanceMetrics の検証（29テスト）
 │   ├── test_similarity_engine.py  # SimilarityEngine の検証（26テスト）
 │   └── test_embedding_loader.py   # EmbeddingLoader の検証（16テスト）
-├── DOCS/
-│   └── ARCHITECTURE_SPEC.md       # 詳細アーキテクチャ仕様
+│
+├── scripts/                       # 資産生成スクリプト群（セットアップ時のみ実行）
+│   ├── paths.py                   # assets/ 構成に合わせたパス定義
+│   ├── token_definition.py
+│   ├── tokenizer.py
+│   ├── gen_brown_vocab.py         # Brown コーパスから語彙生成
+│   ├── gen_wiki_vocab.py          # Simple Wikipedia から語彙生成
+│   ├── merge_vocab.py             # 語彙マージ → vocab.json
+│   ├── export_static_vectors.py   # Word2Vec ベクトル生成
+│   ├── export_sbert_vectors.py    # SBERT ベクトル生成
+│   ├── export_vocab_pos.py        # 品詞ラベル生成
+│   └── gen_manifest.py            # manifest.json 生成
+│
+├── models/                        # Word2Vec モデル配置場所（Git管理外）
+│
+├── DOCS/                          # 設計ドキュメント
+│   ├── 要件定義書.md
+│   ├── 基本設計書.md
+│   ├── 詳細設計書.md
+│   ├── テスト設計書.md
+│   └── テスト項目書.md
 ├── requirements.txt
 └── README.md
 ```
