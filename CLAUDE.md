@@ -161,9 +161,13 @@ Explainable-Semantic-Space-Explorer/
 │   ├── __init__.py              ✅ 完成
 │   ├── test_distance_metrics.py ✅ 完成（29テスト）
 │   ├── test_similarity_engine.py ✅ 完成（26テスト）
-│   └── test_embedding_loader.py ✅ 完成（16テスト）
-├── tmp/                         ⚠ scripts/ 統合待ち（PENDING）
-│   ├── paths.py
+│   ├── test_embedding_loader.py ✅ 完成（16テスト）
+│   ├── test_pos_filter.py       ✅ 完成（29テスト）
+│   ├── test_analyzer.py         ✅ 完成（31テスト）
+│   ├── test_cluster.py          ✅ 完成（29テスト）
+│   └── test_projection.py       ✅ 完成（32テスト）
+├── scripts/                     ✅ 統合完了（A 案：paths.py 廃止）
+│   ├── __init__.py
 │   ├── token_definition.py
 │   ├── tokenizer.py
 │   ├── gen_brown_vocab.py
@@ -172,7 +176,10 @@ Explainable-Semantic-Space-Explorer/
 │   ├── export_static_vectors.py
 │   ├── export_sbert_vectors.py
 │   ├── export_vocab_pos.py
-│   └── note.md
+│   └── gen_manifest.py
+├── models/                      ✅ 配置先のみ作成（モデル本体は Git 管理外）
+│   └── .gitkeep
+├── tmp/                         ⚠ scripts/ 統合済み・削除推奨（mag が手動）
 ├── DOCS/
 │   ├── 要件定義書.md
 │   ├── 基本設計書.md
@@ -357,7 +364,7 @@ Projector(method="pca", seed=42)
 | 項目 | 状態 | 備考 |
 |------|------|------|
 | Streamlit Cloud デプロイ | ⬜ 未着手 | assets/ 大容量問題（Git LFS 等の解決策を検討中） |
-| scripts/ 正式統合 | ⬜ 未着手 | HuggingFace 制約解除後に着手（DOCS/SCRIPTS_INTEGRATION_PLAN.md 参照） |
+| scripts/ 正式統合 | ✅ 完了 | A 案（paths.py 廃止）で 2026-05-06 統合（DOCS/SCRIPTS_INTEGRATION_PLAN.md 参照） |
 
 ### フェーズ3（改善）
 
@@ -368,34 +375,34 @@ Projector(method="pca", seed=42)
 
 ---
 
-## scripts/ 組み込み計画（PENDING）
+## scripts/ 組み込み（完了）
 
-> **2026-03-03 記録**
+> **2026-05-06 記録**
 
-`tmp/` の資産生成スクリプト群を `scripts/` として正式統合する計画を策定済み。
+`tmp/` の資産生成スクリプト群を `scripts/` パッケージとして正式統合済み。
 詳細: `DOCS/SCRIPTS_INTEGRATION_PLAN.md`
 
-**ブロッカー:** `HuggingFace オンラインダウンロード禁止` 制約の解除待ち。
-
-- `gen_wiki_vocab.py` → `datasets` 経由で Simple Wikipedia をダウンロード（セットアップ時のみ）
-- `export_sbert_vectors.py` → `all-MiniLM-L6-v2` モデルをダウンロード（セットアップ時のみ）
-
-制約解除後、以下を実装する:
+**設計方針 (A 案):** `paths.py` は廃止し、各スクリプト先頭でパスを inline 定義する。
+`core/` および `ui/` がすでに inline 方式である点との対称性を優先した。
 
 ```
 scripts/
-├── __init__.py
-├── paths.py               # assets/ 構成に合わせて書き直し
-├── token_definition.py
-├── tokenizer.py
-├── gen_brown_vocab.py
-├── gen_wiki_vocab.py
-├── merge_vocab.py
-├── export_static_vectors.py
-├── export_sbert_vectors.py
-├── export_vocab_pos.py
+├── __init__.py            # 空（パッケージ化マーカー）
+├── token_definition.py    # tmp/ から移植（変更なし）
+├── tokenizer.py           # tmp/ から移植（変更なし）
+├── gen_brown_vocab.py     # import を scripts.* へ修正
+├── gen_wiki_vocab.py      # import を scripts.* へ修正
+├── merge_vocab.py         # import 修正・パス inline 化
+├── export_static_vectors.py  # import 修正・パス inline 化・STATIC_WORDS 廃止
+├── export_sbert_vectors.py   # import 修正・パス inline 化・SBERT_WORDS 廃止
+├── export_vocab_pos.py    # import 修正・パス inline 化
 └── gen_manifest.py        # 新規（manifest.json 生成）
+
+models/
+└── .gitkeep               # Word2Vec モデル配置場所（モデル本体は Git 管理外）
 ```
+
+**残作業:** `tmp/` の削除（mag が手動実行）。
 
 ---
 
