@@ -285,7 +285,7 @@ models/*.model.wv.vectors.npy
 |---|---|
 | `README.md` | セットアップ手順に `scripts/` の実行手順を追加 |
 | `CLAUDE.md` | ディレクトリ構造に `scripts/` を追加。セットアップ手順を更新 |
-| `docs/ARCHITECTURE_SPEC.md` | Section 3（Data Assets）にスクリプト層の説明を追加 |
+| `DOCS/ARCHITECTURE_SPEC.md` | Section 3（Data Assets）にスクリプト層の説明を追加 |
 
 ---
 

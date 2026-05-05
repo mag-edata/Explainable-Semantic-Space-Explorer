@@ -6,7 +6,7 @@
 
 - static 埋め込み（Word2Vec）と文脈埋め込み（SBERT）の差異を数値で説明する
 - UIの美しさは目的外。**説明可能性・再現性が最優先**
-- 詳細仕様: `docs/ARCHITECTURE_SPEC.md`
+- 詳細仕様: `DOCS/ARCHITECTURE_SPEC.md`
 
 ---
 
@@ -98,7 +98,7 @@ Explainable-Semantic-Space-Explorer/
 │   ├── test_distance_metrics.py ✅ 完成（29テスト）
 │   ├── test_similarity_engine.py✅ 完成（26テスト）
 │   └── test_embedding_loader.py ✅ 完成（16テスト）
-├── docs/
+├── DOCS/
 │   └── ARCHITECTURE_SPEC.md     ✅ 既存
 ├── CLAUDE.md                    ✅ 本ファイル
 └── requirements.txt             ✅ 作成済み
@@ -282,7 +282,7 @@ venv/bin/python3 -m unittest discover tests/ -v
 > **2026-03-03 記録**
 
 `tmp/` の資産生成スクリプト群を `scripts/` として正式統合する計画を策定済み。
-詳細: `docs/SCRIPTS_INTEGRATION_PLAN.md`
+詳細: `DOCS/SCRIPTS_INTEGRATION_PLAN.md`
 
 **ブロッカー:** `HuggingFace オンラインダウンロード禁止` 制約の解除待ち。
 

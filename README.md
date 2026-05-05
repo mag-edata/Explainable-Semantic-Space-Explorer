@@ -80,7 +80,7 @@ Explainable-Semantic-Space-Explorer/
 │   ├── test_distance_metrics.py   # DistanceMetrics の検証（29テスト）
 │   ├── test_similarity_engine.py  # SimilarityEngine の検証（26テスト）
 │   └── test_embedding_loader.py   # EmbeddingLoader の検証（16テスト）
-├── docs/
+├── DOCS/
 │   └── ARCHITECTURE_SPEC.md       # 詳細アーキテクチャ仕様
 ├── requirements.txt
 └── README.md
