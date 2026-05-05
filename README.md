@@ -131,7 +131,7 @@ SBERT は文脈を考慮して動的にベクトルを生成する。
 | クラスタリング | KMeans（コサイン距離） |
 | UI | Streamlit + Altair |
 | 言語 | Python 3.12 |
-| テスト | unittest（71テスト全通過） |
+| テスト | unittest（192テスト全通過） |
 
 ---
 
@@ -140,7 +140,7 @@ SBERT は文脈を考慮して動的にベクトルを生成する。
 - 埋め込み空間の「説明可能性」を設計としてどう組み込むか
 - 外部 API に依存しないローカル完結 NLP パイプラインの構築
 - 静的 vs 文脈埋め込みの差異を定量的に可視化・比較するアーキテクチャ
-- 71テストによるコアロジックの品質担保
+- 192テストによるコアロジックの品質担保（core 層 + analysis 層を網羅）
 
 ---
 
@@ -225,10 +225,14 @@ Explainable-Semantic-Space-Explorer/
 ├── ui/
 │   └── app.py                     # Streamlit UI（4タブ）
 │
-├── tests/                         # 単体テスト群（71テスト全通過）
+├── tests/                         # 単体テスト群（192テスト全通過）
 │   ├── test_distance_metrics.py
 │   ├── test_similarity_engine.py
-│   └── test_embedding_loader.py
+│   ├── test_embedding_loader.py
+│   ├── test_pos_filter.py
+│   ├── test_analyzer.py
+│   ├── test_cluster.py
+│   └── test_projection.py
 │
 ├── scripts/                       # 資産生成スクリプト群（セットアップ時のみ実行）
 │   ├── paths.py

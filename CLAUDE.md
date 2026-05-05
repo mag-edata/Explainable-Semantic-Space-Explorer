@@ -123,7 +123,7 @@ assets/ ──► core/ ──► analysis/ ──► ui/app.py
 | クラスタリング | KMeans（コサイン距離） |
 | UI | Streamlit + Altair |
 | 言語 | Python 3.12 |
-| テスト | unittest（71テスト全通過） |
+| テスト | unittest（192テスト全通過） |
 
 ---
 
@@ -347,7 +347,7 @@ Projector(method="pca", seed=42)
 | analysis/cluster.py | ✅ 完了 | コサイン KMeans |
 | analysis/projection.py | ✅ 完了 | PCA / UMAP |
 | ui/app.py | ✅ 完了 | Streamlit 4タブ |
-| tests/ | ✅ 完了 | 71テスト全通過 |
+| tests/ | ✅ 完了 | 192テスト全通過 |
 | GitHub 公開 | ✅ 完了 | |
 
 → フェーズ1 全タスク完了。実装完了ライン達成済み
@@ -426,4 +426,4 @@ scripts/
 - 説明可能性の設計（コサイン類似度の内訳・Z-score の意味）
 - 外部 API 不使用のローカル完結 NLP パイプライン
 - 静的 vs 文脈埋め込みの差異を定量的に比較するアーキテクチャ
-- 71テストによるコアロジックの品質担保
+- 192テストによるコアロジックの品質担保（core 層 + analysis 層を網羅）
