@@ -3,111 +3,55 @@
 単語埋め込み空間を可視化・分析し、**「なぜその単語が近いのか」を数値で説明する**ツール。
 
 - 静的埋め込み（Word2Vec）と文脈埋め込み（SBERT）の差異を定量的に比較
-- コサイン類似度の計算式を UI 上に明示（ブラックボックスにしない）
-- 品詞・クラスタ・Z-score など多角的な視点で「近さの理由」を説明
+- コサイン類似度の計算を内積・ノルム・式の形式で分解し、ブラックボックスにしない
 - 外部 API 不使用・ローカル CPU のみで完全動作
 
 ---
 
-## 動作環境
+## 課題
 
-| 項目 | バージョン |
-|---|---|
-| Python | 3.12 |
-| numpy | 2.4.2 |
-| scikit-learn | 1.8.0 |
-| umap-learn | 0.5.11 |
-| streamlit | 1.54.0 |
-| altair | 6.0.0 |
+NLP の実務では単語埋め込みが広く使われているが、その挙動は説明しにくい。
 
----
+### 典型的なブラックボックス問題
 
-## セットアップ
+- **結果は出るが理由がわからない**  
+  「"king" の近傍に "queen" が出る」は知っていても、なぜ近いのかを数値で説明できない
 
-```bash
-# 仮想環境の作成・有効化
-python3 -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+- **モデル間の差異が把握しにくい**  
+  Word2Vec（静的）と SBERT（文脈）は同じ単語を異なる位置に置く。その差を定量的に比較する手段が乏しい
 
-# 依存パッケージのインストール
-pip install -r requirements.txt
+- **類似度スコアの意味が不明瞭**  
+  0.82 は「高い」のか「普通」なのか、語彙全体の分布を見なければ判断できない
 
-# NLTK データのダウンロード（資産ファイル生成に必要）
-python -c "import nltk; nltk.download('brown')"
-python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
-```
+その結果：
+- モデル選定の根拠が感覚的になる
+- 埋め込みの挙動をチームで共有しにくい
+- デバッグ・改善の試行錯誤にコストがかかる
 
 ---
 
-## 起動方法
+## 解決策
 
-```bash
-# Streamlit アプリを起動
-venv/bin/python3 -m streamlit run ui/app.py
-# → http://localhost:8501 がブラウザで開く
-```
+このツールは、埋め込みを**「理解するための対象」**として扱う。
 
----
+1. **類似度の内訳を表示**  
+   コサイン類似度を `dot(a,b) / (‖a‖·‖b‖)` の形式で分解し、内積・ノルムを個別に確認できる
 
-## プロジェクト構造
+2. **Z-score で相対的な位置を把握**  
+   語彙全体の分布における外れ値度を数値化し、0.82 が本当に高いかを判断できる
 
-```
-Explainable-Semantic-Space-Explorer/
-├── assets/                        # 埋め込みベクトル・メタデータ（変更禁止・Git管理外）
-│   ├── embeddings/
-│   │   ├── static_vectors.npy     # Word2Vec  shape (83823, 300)
-│   │   └── sbert_vectors.npy      # SBERT     shape (83823, 384)
-│   ├── metadata/
-│   │   ├── vocab.json             # 語彙リスト（ローダーが辞書に変換）
-│   │   └── vocab_pos.npy          # 品詞ラベル配列 shape (83823,)
-│   └── manifest.json              # shape / dtype の整合チェック用
-│
-├── core/                          # 純粋ロジック層（Streamlit 禁止）
-│   ├── embedding_loader.py        # ベクトル読み込み・整合チェック
-│   ├── similarity_engine.py       # 類似度検索・比較
-│   ├── distance_metrics.py        # コサイン類似度の自前実装
-│   ├── pos_filter.py              # 品詞フィルタリング
-│   └── analyzer.py                # 距離分布の統計分析
-│
-├── analysis/                      # 可視化前処理層
-│   ├── cluster.py                 # KMeans クラスタリング（コサイン距離）
-│   └── projection.py              # PCA / UMAP による 2D 投影
-│
-├── ui/
-│   └── app.py                     # Streamlit UI（4タブ）
-│
-├── tests/                         # 単体テスト群（71テスト）
-│   ├── test_distance_metrics.py   # DistanceMetrics の検証（29テスト）
-│   ├── test_similarity_engine.py  # SimilarityEngine の検証（26テスト）
-│   └── test_embedding_loader.py   # EmbeddingLoader の検証（16テスト）
-│
-├── scripts/                       # 資産生成スクリプト群（セットアップ時のみ実行）
-│   ├── paths.py                   # assets/ 構成に合わせたパス定義
-│   ├── token_definition.py
-│   ├── tokenizer.py
-│   ├── gen_brown_vocab.py         # Brown コーパスから語彙生成
-│   ├── gen_wiki_vocab.py          # Simple Wikipedia から語彙生成
-│   ├── merge_vocab.py             # 語彙マージ → vocab.json
-│   ├── export_static_vectors.py   # Word2Vec ベクトル生成
-│   ├── export_sbert_vectors.py    # SBERT ベクトル生成
-│   ├── export_vocab_pos.py        # 品詞ラベル生成
-│   └── gen_manifest.py            # manifest.json 生成
-│
-├── models/                        # Word2Vec モデル配置場所（Git管理外）
-│
-├── DOCS/                          # 設計ドキュメント
-│   ├── 要件定義書.md
-│   ├── 基本設計書.md
-│   ├── 詳細設計書.md
-│   ├── テスト設計書.md
-│   └── テスト項目書.md
-├── requirements.txt
-└── README.md
-```
+3. **静的 vs 文脈埋め込みを並列比較**  
+   Word2Vec と SBERT の近傍語・ランク差・共通語・固有語を対称的に比較できる
+
+4. **2D 投影 + クラスタリングで構造を可視化**  
+   PCA / UMAP で埋め込み空間を俯瞰し、KMeans で語彙の意味的グループを確認できる
+
+5. **品詞フィルタリングで絞り込み**  
+   名詞・動詞・形容詞などで近傍語を絞り込み、統語的なバイアスを分離できる
 
 ---
 
-## アーキテクチャ概要
+## アーキテクチャ
 
 依存方向は一方向のみ。逆流禁止。
 
@@ -122,136 +66,43 @@ assets/ ──► core/ ──► analysis/ ──► ui/app.py
 | `analysis/` | PCA・UMAP・KMeans など可視化前処理 |
 | `ui/` | Streamlit で表示するだけ。ロジック記述禁止 |
 
----
+例：
 
-## 主要機能（実装済み）
+入力（クエリ語）
+- "bank"
 
-### 類似度検索
+出力（静的 vs 文脈 比較）
 
-```python
-from pathlib import Path
-from core.embedding_loader import EmbeddingLoader
-from core.similarity_engine import SimilarityEngine
-from core.distance_metrics import DistanceMetrics
+**Word2Vec（静的）の近傍**
+- river, shore, creek, lake ...
+  → 文脈なしのため、地理的な意味に引っ張られる
 
-loader = EmbeddingLoader(Path("assets"))
-loader.load_all()
-metrics = DistanceMetrics()
+**SBERT（文脈）の近傍**
+- financial, credit, loan, fund ...
+  → コーパス中の文脈から、金融的な意味が優勢になる
 
-engine = SimilarityEngine(
-    vectors=loader.static_vectors,
-    vocab=loader.vocab,
-    pos_tags=loader.pos,
-    metrics=metrics,
-)
-
-# Top-10 類似語を検索
-results = engine.search("king", top_k=10)
-for r in results:
-    print(f"{r.rank}位: {r.word}  similarity={r.similarity:.4f}  ({r.pos_tag})")
-```
-
-### static vs SBERT 比較
-
-```python
-sbert_engine = SimilarityEngine(
-    vectors=loader.sbert_vectors,
-    vocab=loader.vocab,
-    pos_tags=loader.pos,
-    metrics=metrics,
-)
-
-comparison = engine.compare("king", other=sbert_engine, top_k=10)
-print("共通語:", comparison.common_words)
-print("static 固有:", comparison.static_only)
-print("SBERT 固有:", comparison.sbert_only)
-```
-
-### 距離分布 + Z-score
-
-```python
-dist = engine.get_distance_distribution("king")
-print(f"平均類似度: {dist['mean']:.4f}")
-print(f"標準偏差:   {dist['std']:.4f}")
-print(f"Top-1:      {dist['top1_similarity']:.4f}")
-print(f"Z-score:    {dist['z_score']:.4f}")
-```
-
-### クラスタリング（コサイン KMeans）
-
-```python
-from analysis.cluster import KMeansClusterer
-
-clusterer = KMeansClusterer(n_clusters=8, seed=42)
-result = clusterer.fit(loader.static_vectors)
-
-print(f"クラスタ数: {result.n_clusters}")
-print(f"inertia:   {result.inertia:.4f}")
-print(f"単語 'king' のクラスタID: {result.labels[loader.vocab['king']]}")
-```
+→ 同じ "bank" でも埋め込みモデルによって**意味空間の位置が変わる**ことが数値で確認できる
 
 ---
 
-## 説明可能性の設計方針
+## 設計方針
 
-各検索結果には計算の内訳が付属する。
+### なぜコサイン類似度を自前実装するか
 
-```python
-result = engine.search("king", top_k=1)[0]
-exp = result.explanation
-print(f"内積:       {exp['dot_product']:.4f}")
-print(f"|query|:    {exp['norm_a']:.4f}")
-print(f"|target|:   {exp['norm_b']:.4f}")
-print(f"コサイン:   {exp['similarity']:.4f}")
-print(f"計算式:     {exp['formula']}")
-# → "dot(a,b) / (‖a‖·‖b‖) = 12.34 / (5.00·3.00) = 0.8227"
-```
+scipy / sklearn の `cosine_similarity` を使えば 1 行で済む。
+あえて自前実装することで、計算過程（内積・ノルム・除算）を UI 上に明示し、
+「類似度とは何か」を説明可能にする。
 
----
+### なぜ静的と文脈の両方を扱うか
 
-## テストの実行
+Word2Vec は単語に固定ベクトルを割り当てる（多義語を区別しない）。
+SBERT は文脈を考慮して動的にベクトルを生成する。
+この差異を並列表示することで、「どちらが優れているか」ではなく「何が違うのか」を理解できる。
 
-Python 標準の `unittest` を使用。pytest 不要。
+### なぜ外部 API を使わないか
 
-```bash
-# 全テストを実行
-venv/bin/python3 -m unittest discover tests/ -v
-
-# 個別ファイルを実行
-venv/bin/python3 -m unittest tests/test_distance_metrics.py -v
-venv/bin/python3 -m unittest tests/test_similarity_engine.py -v
-venv/bin/python3 -m unittest tests/test_embedding_loader.py -v
-```
-
-期待される出力:
-```
-Ran 71 tests in 0.063s
-OK
-```
-
----
-
-## 制約
-
-| 制約 | 理由 |
-|---|---|
-| 外部 API 禁止（OpenAI 等） | ローカル完結・再現性保証 |
-| HuggingFace オンラインダウンロード禁止 | オフライン動作 |
-| コサイン類似度は自前実装 | 計算過程の透明性 |
-| 乱数 seed 固定（42） | 完全再現性 |
-| 推論時の学習禁止 | CPU 環境での速度保証 |
-
----
-
-## 実装状況
-
-| コンポーネント | 状態 | 備考 |
-|---|---|---|
-| `core/` 全ファイル | ✅ 完成 | 5ファイル |
-| `analysis/cluster.py` | ✅ 完成 | コサイン KMeans |
-| `analysis/projection.py` | ✅ 完成 | PCA / UMAP |
-| `ui/app.py` | ✅ 完成 | Streamlit 4タブ |
-| `tests/` | ✅ 完成 | 71テスト全通過 |
+再現性と透明性を最優先にするため、外部サービスへの依存を排除した。
+ローカル CPU 環境で完全に動作し、コードを読めば挙動がすべて追える。
 
 ---
 
@@ -259,13 +110,153 @@ OK
 
 ### [UI] 投影・クラスタタブ: クエリ語マーカーの凡例と図の不一致
 
-- **場所**: `ui/app.py` — 投影・クラスタタブの散布図
-- **現象**: Altair の `shape` エンコーディング（`alt.Shape` + `alt.Scale(domain, range)`）でクエリ語に `"cross"` を指定しているが、凡例の表示と図上のマーカー形状が一致しないことがある
+- **現象**: Altair の `shape` エンコーディングでクエリ語に `"cross"` を指定しているが、凡例の表示と図上のマーカー形状が一致しないことがある
 - **試みた対策**:
-  - `range=["star", "circle"]` → `"star"` は Vega-Lite の無効値のため凡例が消滅
+  - `range=["star", "circle"]` → Vega-Lite の無効値のため凡例が消滅
   - チャートをレイヤー分割（近傍語・クエリ語を別 `alt.Chart`）→ 描画自体が消えた
 - **現在の状態**: `range=["cross", "circle"]` に戻して保留中
 - **候補解決策**:
-  - Altair の `mark_rule` / `mark_point` を組み合わせてクエリ点を別途オーバーレイする
-  - `shape` エンコーディングを廃止し、`size` と `color` だけでクエリを目立たせる
-  - Vega-Lite の SVG パス文字列を `range` に直接渡す
+  - `mark_rule` / `mark_point` を組み合わせてクエリ点を別途オーバーレイする
+  - `shape` を廃止し `size` + `color` でクエリを目立たせる
+
+---
+
+## 技術スタック
+
+| 役割 | 技術 |
+|---|---|
+| 静的埋め込み | Word2Vec（学習済みモデル、ローカル配置） |
+| 文脈埋め込み | SBERT（all-MiniLM-L6-v2、ローカル配置） |
+| 次元削減 | PCA / UMAP |
+| クラスタリング | KMeans（コサイン距離） |
+| UI | Streamlit + Altair |
+| 言語 | Python 3.12 |
+| テスト | unittest（71テスト全通過） |
+
+---
+
+## このプロジェクトが示すもの
+
+- 埋め込み空間の「説明可能性」を設計としてどう組み込むか
+- 外部 API に依存しないローカル完結 NLP パイプラインの構築
+- 静的 vs 文脈埋め込みの差異を定量的に可視化・比較するアーキテクチャ
+- 71テストによるコアロジックの品質担保
+
+---
+
+## Demo
+
+> *(Pending: `assets/` の埋め込みファイルが大容量のため Streamlit Cloud へのデプロイを検討中)*
+
+ローカルでの動作確認は「セットアップ」を参照。
+
+---
+
+## セットアップ
+
+```bash
+# 1. リポジトリのクローン
+git clone https://github.com/mag-edata/Explainable-Semantic-Space-Explorer.git
+cd Explainable-Semantic-Space-Explorer
+
+# 2. 仮想環境の作成・有効化
+python3 -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+
+# 3. 依存パッケージのインストール
+pip install -r requirements.txt
+
+# 4. NLTK データのダウンロード
+python -c "import nltk; nltk.download('brown')"
+python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
+
+# 5. Word2Vec モデルを models/ に手動配置
+#    → models/w2v_brown10_simplewiki10_sg_300d_w5.model
+
+# 6. 資産ファイルの生成（初回のみ。HuggingFace へのアクセスが必要）
+python -m scripts.merge_vocab             # → assets/metadata/vocab.json
+python -m scripts.export_static_vectors  # → assets/embeddings/static_vectors.npy
+python -m scripts.export_sbert_vectors   # → assets/embeddings/sbert_vectors.npy
+python -m scripts.export_vocab_pos       # → assets/metadata/vocab_pos.npy
+python -m scripts.gen_manifest           # → assets/manifest.json
+
+# 7. アプリ起動
+venv/bin/python3 -m streamlit run ui/app.py
+# → http://localhost:8501 がブラウザで開く
+```
+
+### 動作確認済み環境
+
+| 項目 | バージョン |
+|---|---|
+| Python | 3.12 |
+| numpy | 2.4.2 |
+| scikit-learn | 1.8.0 |
+| umap-learn | 0.5.11 |
+| streamlit | 1.54.0 |
+| altair | 6.0.0 |
+
+---
+
+## プロジェクト構造
+
+```
+Explainable-Semantic-Space-Explorer/
+├── assets/                        # 埋め込みベクトル・メタデータ（Git管理外）
+│   ├── embeddings/
+│   │   ├── static_vectors.npy     # Word2Vec  shape (83823, 300)
+│   │   └── sbert_vectors.npy      # SBERT     shape (83823, 384)
+│   ├── metadata/
+│   │   ├── vocab.json             # 語彙リスト
+│   │   └── vocab_pos.npy          # 品詞ラベル配列 shape (83823,)
+│   └── manifest.json              # shape / dtype 整合チェック用
+│
+├── core/                          # 純粋ロジック層（外部 API 禁止）
+│   ├── embedding_loader.py        # ベクトル読み込み・整合チェック
+│   ├── similarity_engine.py       # 類似度検索・比較
+│   ├── distance_metrics.py        # コサイン類似度の自前実装
+│   ├── pos_filter.py              # 品詞フィルタリング
+│   └── analyzer.py                # 距離分布の統計分析
+│
+├── analysis/                      # 可視化前処理層
+│   ├── cluster.py                 # KMeans クラスタリング
+│   └── projection.py              # PCA / UMAP による 2D 投影
+│
+├── ui/
+│   └── app.py                     # Streamlit UI（4タブ）
+│
+├── tests/                         # 単体テスト群（71テスト全通過）
+│   ├── test_distance_metrics.py
+│   ├── test_similarity_engine.py
+│   └── test_embedding_loader.py
+│
+├── scripts/                       # 資産生成スクリプト群（セットアップ時のみ実行）
+│   ├── paths.py
+│   ├── merge_vocab.py
+│   ├── export_static_vectors.py
+│   ├── export_sbert_vectors.py
+│   ├── export_vocab_pos.py
+│   └── gen_manifest.py
+│
+├── models/                        # Word2Vec モデル配置場所（Git管理外）
+│
+├── DOCS/                          # 設計ドキュメント
+│   ├── 要件定義書.md
+│   ├── 基本設計書.md
+│   ├── 詳細設計書.md
+│   ├── テスト設計書.md
+│   └── テスト項目書.md
+│
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## 背景
+
+大学で英語学・英語コーパス・統計的著者推定を学んだことをきっかけに、Python によるデータ分析と AI に興味を持った。
+
+単語の「意味の近さ」を統計的に扱う研究に触れる中で、埋め込みモデルが**なぜそう判断するのか**を説明する手段がないことに課題を感じた。
+
+このプロジェクトは、その課題を出発点として設計した。ツールとして「動く」だけでなく、**埋め込み空間の挙動を理解・説明できること**を最優先に置いている。
