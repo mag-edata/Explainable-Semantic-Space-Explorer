@@ -1,5 +1,5 @@
 """
-merge_vocab.py
+merge.py
 
 本モジュールは、
 以下2コーパスの統合語彙をJSON形式で書き出すことで
@@ -15,30 +15,30 @@ merge_vocab.py
 import json
 from pathlib import Path
 
-from data_pipeline.gen_brown_vocab import gen_brown_vocab
-from data_pipeline.gen_wiki_vocab import gen_wiki_vocab
+from data_pipeline.vocab.gen_brown import gen_brown
+from data_pipeline.vocab.gen_wiki import gen_wiki
 
 # ---------- 入出力パス（このスクリプト固有）----------
-PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
+PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
 VOCAB_JSON: Path = PROJECT_ROOT / "data" / "metadata" / "vocab.json"
 
 
-def merge_vocab() -> list[str]:
+def merge() -> list[str]:
     """
     Returns
     -------
     list[str]
         BrownとSimple Wikipediaの統合語彙をソートした語彙リスト。
     """
-    brown_vocab = gen_brown_vocab()
-    wiki_vocab = gen_wiki_vocab()
+    brown_vocab = gen_brown()
+    wiki_vocab = gen_wiki()
 
     merged_vocab = sorted(brown_vocab | wiki_vocab)
     return merged_vocab
 
 
 if __name__ == "__main__":
-    vocab = merge_vocab()
+    vocab = merge()
 
     output = {"vocab": vocab}
 

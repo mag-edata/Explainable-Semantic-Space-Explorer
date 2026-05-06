@@ -166,20 +166,25 @@ Explainable-Semantic-Space-Explorer/
 │   ├── test_analyzer.py         ✅ 完成（31テスト）
 │   ├── test_clustering.py       ✅ 完成（29テスト）
 │   └── test_projection.py       ✅ 完成（32テスト）
-├── data_pipeline/               ✅ 統合完了（A 案：paths.py 廃止）
+├── data_pipeline/               ✅ サブパッケージ化完了（C 案）
 │   ├── __init__.py
-│   ├── token_definition.py
-│   ├── tokenizer.py
-│   ├── gen_brown_vocab.py
-│   ├── gen_wiki_vocab.py
-│   ├── merge_vocab.py
-│   ├── export_static_vectors.py
-│   ├── export_contextual_vectors.py
-│   ├── export_vocab_pos.py
-│   └── gen_manifest.py
+│   ├── manifest.py
+│   ├── _common/
+│   │   ├── __init__.py
+│   │   ├── token_definition.py
+│   │   └── tokenizer.py
+│   ├── vocab/
+│   │   ├── __init__.py
+│   │   ├── gen_brown.py
+│   │   ├── gen_wiki.py
+│   │   └── merge.py
+│   └── export/
+│       ├── __init__.py
+│       ├── static_vectors.py
+│       ├── contextual_vectors.py
+│       └── vocab_pos.py
 ├── models/                      ✅ 配置先のみ作成（モデル本体は Git 管理外）
 │   └── .gitkeep
-├── tmp/                         ⚠ data_pipeline/ 統合済み・削除推奨（mag が手動）
 ├── DOCS/
 │   ├── 要件定義書.md
 │   ├── 基本設計書.md
@@ -365,7 +370,7 @@ Projector(method="pca", seed=42)
 |------|------|------|
 | Streamlit Cloud デプロイ | ⬜ 未着手 | data/ 大容量問題（Git LFS 等の解決策を検討中） |
 | data_pipeline/ 正式統合 | ✅ 完了 | A 案（paths.py 廃止）で 2026-05-06 統合（git log 参照） |
-| data_pipeline/ サブパッケージ化（C案） | ⬜ 未着手 | DOCS/DATA_PIPELINE_REFACTOR_PLAN.md に NEXT ACTION 計画あり |
+| data_pipeline/ サブパッケージ化 | ✅ 完了 | 2026-05-07 実施（DOCS/DATA_PIPELINE_REFACTOR_PLAN.md 参照） |
 
 ### フェーズ3（改善）
 
@@ -376,28 +381,34 @@ Projector(method="pca", seed=42)
 
 ---
 
-## data_pipeline/ 組み込み（完了）
+## data_pipeline/ 組み込み・サブパッケージ化（完了）
 
-> **2026-05-06 記録**
+> **2026-05-06 記録（統合）/ 2026-05-07 記録（サブパッケージ化）**
 
-`tmp/` の資産生成スクリプト群を `data_pipeline/` パッケージとして正式統合済み。
-履歴は git log を参照。次のリファクタ計画は `DOCS/DATA_PIPELINE_REFACTOR_PLAN.md`。
+`tmp/` の資産生成スクリプト群を `data_pipeline/` パッケージとして正式統合後、
+C 案（サブパッケージ化）によりステージごとのディレクトリ構成に移行済み。
+履歴は git log を参照。詳細は `DOCS/DATA_PIPELINE_REFACTOR_PLAN.md`。
 
-**設計方針 (A 案):** `paths.py` は廃止し、各スクリプト先頭でパスを inline 定義する。
-`core/` および `ui/` がすでに inline 方式である点との対称性を優先した。
+**設計方針:** `paths.py` 廃止・inline パス定義。ステージごとにサブパッケージを分割。
 
 ```
 data_pipeline/
-├── __init__.py            # 空（パッケージ化マーカー）
-├── token_definition.py    # tmp/ から移植（変更なし）
-├── tokenizer.py           # tmp/ から移植（変更なし）
-├── gen_brown_vocab.py     # import を data_pipeline.* へ修正
-├── gen_wiki_vocab.py      # import を data_pipeline.* へ修正
-├── merge_vocab.py         # import 修正・パス inline 化
-├── export_static_vectors.py  # import 修正・パス inline 化・STATIC_WORDS 廃止
-├── export_contextual_vectors.py   # import 修正・パス inline 化・CONTEXTUAL_WORDS 廃止
-├── export_vocab_pos.py    # import 修正・パス inline 化
-└── gen_manifest.py        # 新規（manifest.json 生成）
+├── __init__.py            # 実行コマンド一覧を記載
+├── manifest.py            # manifest.json 生成
+├── _common/               # 共通基盤（内部用）
+│   ├── __init__.py
+│   ├── token_definition.py
+│   └── tokenizer.py
+├── vocab/                 # 語彙生成ステージ
+│   ├── __init__.py
+│   ├── gen_brown.py
+│   ├── gen_wiki.py
+│   └── merge.py
+└── export/                # ベクトル/メタデータ出力ステージ
+    ├── __init__.py
+    ├── static_vectors.py
+    ├── contextual_vectors.py
+    └── vocab_pos.py
 
 models/
 └── .gitkeep               # Word2Vec モデル配置場所（モデル本体は Git 管理外）

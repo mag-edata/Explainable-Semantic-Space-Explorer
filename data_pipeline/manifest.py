@@ -1,5 +1,5 @@
 """
-gen_manifest.py
+manifest.py
 
 本モジュールは、
 data/embeddings/static_vectors.npy / contextual_vectors.npy の

@@ -1,5 +1,5 @@
 """
-gen_brown_vocab.py
+gen_brown.py
 
 本モジュールは、
 NLTKのBrownコーパスを用いて、
@@ -13,10 +13,10 @@ from collections import Counter
 
 from nltk.corpus import brown
 
-from data_pipeline.tokenizer import normalize_tokens
+from data_pipeline._common.tokenizer import normalize_tokens
 
 
-def gen_brown_vocab(min_freq: int = 10) -> set[str]:
+def gen_brown(min_freq: int = 10) -> set[str]:
     """
     指定出現回数以上の単語のみを集めた語彙集合(vocabulary)を構築する。
 
@@ -49,5 +49,5 @@ def gen_brown_vocab(min_freq: int = 10) -> set[str]:
 
 
 if __name__ == "__main__":
-    vocab = gen_brown_vocab()
+    vocab = gen_brown()
     print(f"Brown vocab size: {len(vocab)}")

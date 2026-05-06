@@ -1,5 +1,5 @@
 """
-export_contextual_vectors.py
+contextual_vectors.py
 
 本モジュールは、
 merge_vocab.pyにより確定した統合語彙に対し、
@@ -28,7 +28,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 # ---------- 入出力パス（このスクリプト固有）----------
-PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
+PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
 VOCAB_JSON: Path = PROJECT_ROOT / "data" / "metadata" / "vocab.json"
 CONTEXTUAL_VECTORS: Path = PROJECT_ROOT / "data" / "embeddings" / "contextual_vectors.npy"
 

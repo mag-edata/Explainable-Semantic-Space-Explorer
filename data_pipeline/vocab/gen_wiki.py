@@ -1,5 +1,5 @@
 """
-gen_wiki_vocab.py
+gen_wiki.py
 
 本モジュールは、
 Hugging Face DatasetsのSimple Wikipediaコーパスを用いて、
@@ -15,10 +15,10 @@ from collections import Counter
 
 from datasets import load_dataset
 
-from data_pipeline.tokenizer import tokenize_text
+from data_pipeline._common.tokenizer import tokenize_text
 
 
-def gen_wiki_vocab(min_freq: int = 10) -> set[str]:
+def gen_wiki(min_freq: int = 10) -> set[str]:
     """
     指定出現回数以上の単語のみを集めた語彙集合(vocabulary)を構築する。
 
@@ -57,5 +57,5 @@ def gen_wiki_vocab(min_freq: int = 10) -> set[str]:
 
 
 if __name__ == "__main__":
-    vocab = gen_wiki_vocab()
+    vocab = gen_wiki()
     print(f"Wiki vocab size: {len(vocab)}")

@@ -1,5 +1,5 @@
 """
-export_static_vectors.py
+static_vectors.py
 
 本モジュールは、
 merge_vocab.pyにより確定した統合語彙に対し、
@@ -25,7 +25,7 @@ import numpy as np
 from gensim.models import Word2Vec
 
 # ---------- 入出力パス（このスクリプト固有）----------
-PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
+PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
 VOCAB_JSON: Path = PROJECT_ROOT / "data" / "metadata" / "vocab.json"
 STATIC_VECTORS: Path = PROJECT_ROOT / "data" / "embeddings" / "static_vectors.npy"
 W2V_MODEL: Path = PROJECT_ROOT / "models" / "w2v_brown10_simplewiki10_sg_300d_w5.model"

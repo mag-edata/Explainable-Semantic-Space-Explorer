@@ -174,11 +174,11 @@ python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
 #    → models/w2v_brown10_simplewiki10_sg_300d_w5.model
 
 # 6. 資産ファイルの生成（初回のみ。HuggingFace へのアクセスが必要）
-python -m data_pipeline.merge_vocab             # → data/metadata/vocab.json
-python -m data_pipeline.export_static_vectors  # → data/embeddings/static_vectors.npy
-python -m data_pipeline.export_contextual_vectors   # → data/embeddings/contextual_vectors.npy
-python -m data_pipeline.export_vocab_pos       # → data/metadata/vocab_pos.npy
-python -m data_pipeline.gen_manifest           # → data/manifest.json
+python -m data_pipeline.vocab.merge                    # → data/metadata/vocab.json
+python -m data_pipeline.export.static_vectors         # → data/embeddings/static_vectors.npy
+python -m data_pipeline.export.contextual_vectors     # → data/embeddings/contextual_vectors.npy
+python -m data_pipeline.export.vocab_pos              # → data/metadata/vocab_pos.npy
+python -m data_pipeline.manifest                      # → data/manifest.json
 
 # 7. アプリ起動
 venv/bin/python3 -m streamlit run ui/app.py
