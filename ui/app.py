@@ -6,15 +6,15 @@ Explainable Semantic Space Explorer — Streamlit UI
 単語埋め込み空間を可視化・分析し、「なぜその単語が近いのか」を説明するUI。
 
 設計方針:
-    - このファイルはロジックを持たない。core/ と analysis/ を呼ぶだけ。
-    - 計算・変換・判定はすべて core/analysis 層に委譲する。
+    - このファイルはロジックを持たない。core/ と transforms/ を呼ぶだけ。
+    - 計算・変換・判定はすべて core/transforms 層に委譲する。
     - @st.cache_resource でエンジンを1回だけ初期化する（大規模ベクトルの再読み込み防止）。
 
 タブ構成:
-    Tab 1: 類似語検索       — Top-K 類似語・品詞分布・コサイン計算式の表示
-    Tab 2: Static vs SBERT  — 2モデルの比較・順位差・近傍安定性
-    Tab 3: 距離分布分析     — ヒストグラム・Z-score・分布統計
-    Tab 4: 投影・クラスタ   — PCA/UMAP 2D散布図・クラスタ色分け
+    Tab 1: 類似語検索           — Top-K 類似語・品詞分布・コサイン計算式の表示
+    Tab 2: 静的 vs 文脈 比較   — 2モデルの比較・順位差・近傍安定性
+    Tab 3: 距離分布分析         — ヒストグラム・Z-score・分布統計
+    Tab 4: 投影・クラスタ       — PCA/UMAP 2D散布図・クラスタ色分け
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from analysis.cluster import KMeansClusterer
-from analysis.projection import Projector
+from transforms.clustering import KMeansClusterer
+from transforms.projection import Projector
 from core.analyzer import Analyzer
 from core.distance_metrics import DistanceMetrics
 from core.embedding_loader import EmbeddingLoader, EmbeddingLoaderError
@@ -63,13 +63,13 @@ def load_all_engines() -> tuple[EmbeddingLoader, SimilarityEngine, SimilarityEng
     再初期化を避けることで応答速度を確保する。
 
     Returns:
-        tuple: (loader, static_engine, sbert_engine)
+        tuple: (loader, static_engine, contextual_engine)
 
     Raises:
         EmbeddingLoaderError: 資産ファイルが見つからない、または整合エラーの場合。
     """
-    asset_root = Path("assets")
-    loader = EmbeddingLoader(asset_root)
+    data_root = Path("data")
+    loader = EmbeddingLoader(data_root)
     loader.load_all()
 
     metrics = DistanceMetrics()
@@ -80,15 +80,15 @@ def load_all_engines() -> tuple[EmbeddingLoader, SimilarityEngine, SimilarityEng
         pos_tags=loader.pos,
         metrics=metrics,
     )
-    sbert_engine = SimilarityEngine(
-        vectors=loader.sbert_vectors,
+    contextual_engine = SimilarityEngine(
+        vectors=loader.contextual_vectors,
         vocab=loader.vocab,
         pos_tags=loader.pos,
         metrics=metrics,
     )
 
     logger.info("全エンジン初期化完了")
-    return loader, static_engine, sbert_engine
+    return loader, static_engine, contextual_engine
 
 
 # ---------- ヘルパー: SearchResult → DataFrame ----------
@@ -131,7 +131,7 @@ def main() -> None:
 
     # --- エンジン読み込み ---
     try:
-        loader, static_engine, sbert_engine = load_all_engines()
+        loader, static_engine, contextual_engine = load_all_engines()
     except EmbeddingLoaderError as e:
         st.error(f"資産ファイルの読み込みに失敗しました: {e}")
         st.stop()
@@ -195,7 +195,7 @@ def main() -> None:
 
     # ---------- 4タブ ----------
     tab1, tab2, tab3, tab4 = st.tabs(
-        ["類似語検索", "Static vs SBERT 比較", "距離分布分析", "投影・クラスタ"]
+        ["類似語検索", "静的 vs 文脈 比較", "距離分布分析", "投影・クラスタ"]
     )
 
     # =========================================================
@@ -261,15 +261,15 @@ def main() -> None:
         )
 
     # =========================================================
-    # Tab 2: Static vs SBERT 比較
+    # Tab 2: 静的 vs 文脈 比較
     # =========================================================
     with tab2:
-        st.subheader(f"「{query_word}」— Static vs SBERT 比較")
+        st.subheader(f"「{query_word}」— 静的 (Word2Vec) vs 文脈 (SBERT) 比較")
 
         # core: 比較結果取得
         try:
             comparison = static_engine.compare(
-                query_word, other=sbert_engine, top_k=top_k
+                query_word, other=contextual_engine, top_k=top_k
             )
         except UnknownWordError as e:
             st.error(str(e))
@@ -277,14 +277,14 @@ def main() -> None:
 
         # core: 近傍安定性スコア
         stability: float = Analyzer.neighborhood_stability(
-            comparison.static_results, comparison.sbert_results
+            comparison.static_results, comparison.contextual_results
         )
 
         # 集計メトリクス
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("共通語数", len(comparison.common_words))
-        m2.metric("Static 固有語数", len(comparison.static_only))
-        m3.metric("SBERT 固有語数", len(comparison.sbert_only))
+        m2.metric("静的 固有語数", len(comparison.static_only))
+        m3.metric("文脈 固有語数", len(comparison.contextual_only))
         m4.metric(
             "近傍安定性（Jaccard）",
             f"{stability:.3f}",
@@ -293,11 +293,11 @@ def main() -> None:
 
         st.divider()
 
-        # 2列: Static Top-K / SBERT Top-K
+        # 2列: 静的 Top-K / 文脈 Top-K
         col_s, col_b = st.columns(2)
 
         with col_s:
-            st.write("**Static (Word2Vec) Top-K**")
+            st.write("**静的 (Word2Vec) Top-K**")
             static_scored = Analyzer.attach_z_scores(
                 comparison.static_results,
                 static_engine.get_distance_distribution(query_word),
@@ -305,12 +305,12 @@ def main() -> None:
             st.dataframe(results_to_df(static_scored), hide_index=True)
 
         with col_b:
-            st.write("**SBERT Top-K**")
-            sbert_scored = Analyzer.attach_z_scores(
-                comparison.sbert_results,
-                sbert_engine.get_distance_distribution(query_word),
+            st.write("**文脈 (SBERT) Top-K**")
+            contextual_scored = Analyzer.attach_z_scores(
+                comparison.contextual_results,
+                contextual_engine.get_distance_distribution(query_word),
             )
-            st.dataframe(results_to_df(sbert_scored), hide_index=True)
+            st.dataframe(results_to_df(contextual_scored), hide_index=True)
 
         st.divider()
 
@@ -318,7 +318,7 @@ def main() -> None:
         if comparison.rank_diff:
             st.subheader("順位差（共通語）")
             rd_rows = [
-                {"単語": w, "順位差 (static − sbert)": d}
+                {"単語": w, "順位差 (静的 − 文脈)": d}
                 for w, d in sorted(
                     comparison.rank_diff.items(), key=lambda x: abs(x[1]), reverse=True
                 )
@@ -327,9 +327,9 @@ def main() -> None:
 
         # 固有語バッジ
         if comparison.static_only:
-            st.write("**Static 固有語:**", "  ".join(f"`{w}`" for w in comparison.static_only))
-        if comparison.sbert_only:
-            st.write("**SBERT 固有語:**", "  ".join(f"`{w}`" for w in comparison.sbert_only))
+            st.write("**静的 固有語:**", "  ".join(f"`{w}`" for w in comparison.static_only))
+        if comparison.contextual_only:
+            st.write("**文脈 固有語:**", "  ".join(f"`{w}`" for w in comparison.contextual_only))
 
     # =========================================================
     # Tab 3: 距離分布分析
@@ -339,16 +339,16 @@ def main() -> None:
 
         # core: 分布取得 + 統計拡張 + 比較
         static_dist = static_engine.get_distance_distribution(query_word)
-        sbert_dist = sbert_engine.get_distance_distribution(query_word)
+        contextual_dist = contextual_engine.get_distance_distribution(query_word)
 
         static_stats = Analyzer.enrich_distribution(static_dist)
-        sbert_stats = Analyzer.enrich_distribution(sbert_dist)
-        dist_cmp = Analyzer.compare_distributions(query_word, static_dist, sbert_dist)
+        contextual_stats = Analyzer.enrich_distribution(contextual_dist)
+        dist_cmp = Analyzer.compare_distributions(query_word, static_dist, contextual_dist)
 
         # モデル別メトリクス
         col_s, col_b = st.columns(2)
         with col_s:
-            st.write("**Static (Word2Vec)**")
+            st.write("**静的 (Word2Vec)**")
             st.metric("平均類似度", f"{static_stats.mean:.4f}")
             st.metric("標準偏差", f"{static_stats.std:.4f}")
             st.metric("Top-1 類似度", f"{static_stats.top1_similarity:.4f}")
@@ -356,17 +356,17 @@ def main() -> None:
             st.metric("中央値", f"{static_stats.median:.4f}")
 
         with col_b:
-            st.write("**SBERT**")
-            st.metric("平均類似度", f"{sbert_stats.mean:.4f}")
-            st.metric("標準偏差", f"{sbert_stats.std:.4f}")
-            st.metric("Top-1 類似度", f"{sbert_stats.top1_similarity:.4f}")
-            st.metric("Z-score", f"{sbert_stats.z_score:.3f}")
-            st.metric("中央値", f"{sbert_stats.median:.4f}")
+            st.write("**文脈 (SBERT)**")
+            st.metric("平均類似度", f"{contextual_stats.mean:.4f}")
+            st.metric("標準偏差", f"{contextual_stats.std:.4f}")
+            st.metric("Top-1 類似度", f"{contextual_stats.top1_similarity:.4f}")
+            st.metric("Z-score", f"{contextual_stats.z_score:.3f}")
+            st.metric("中央値", f"{contextual_stats.median:.4f}")
 
         st.divider()
 
-        # ヒストグラム（Static）
-        st.subheader("類似度分布ヒストグラム（Static）")
+        # ヒストグラム（静的）
+        st.subheader("類似度分布ヒストグラム（静的）")
 
         hist_data = Analyzer.histogram(static_dist["histogram_data"], n_bins=50)
         bin_centers = [
@@ -397,9 +397,9 @@ def main() -> None:
 
         # 分布比較メトリクス
         st.divider()
-        st.subheader("Static vs SBERT 分布比較")
+        st.subheader("静的 vs 文脈 分布比較")
         c1, c2, c3 = st.columns(3)
-        c1.metric("平均差（static − sbert）", f"{dist_cmp.mean_diff:.4f}")
+        c1.metric("平均差（静的 − 文脈）", f"{dist_cmp.mean_diff:.4f}")
         c2.metric("標準偏差差", f"{dist_cmp.std_diff:.4f}")
         c3.metric("Z-score 差", f"{dist_cmp.z_score_diff:.3f}")
 

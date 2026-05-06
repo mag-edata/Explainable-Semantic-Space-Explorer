@@ -2,7 +2,7 @@
 gen_manifest.py
 
 本モジュールは、
-assets/embeddings/static_vectors.npy / sbert_vectors.npy の
+data/embeddings/static_vectors.npy / contextual_vectors.npy の
 shape および dtype を読み取り、
 manifest.json を生成する。
 
@@ -11,7 +11,7 @@ EmbeddingLoader._validate_against_manifest() による
 shape / dtype 整合チェックの基準を、
 実データから自動生成することにある。
 
-EmbeddingLoader が照合するキーは "static_vectors" と "sbert_vectors" の
+EmbeddingLoader が照合するキーは "static_vectors" と "contextual_vectors" の
 2 つのみ（vocab_pos 等は manifest に記載しなくても警告のみで動作）。
 本スクリプトは現行 manifest.json の構造を踏襲する。
 """
@@ -23,10 +23,10 @@ import numpy as np
 
 # ---------- 入出力パス（このスクリプト固有）----------
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-ASSETS_DIR: Path = PROJECT_ROOT / "assets"
-STATIC_VECTORS: Path = ASSETS_DIR / "embeddings" / "static_vectors.npy"
-SBERT_VECTORS: Path = ASSETS_DIR / "embeddings" / "sbert_vectors.npy"
-MANIFEST_JSON: Path = ASSETS_DIR / "manifest.json"
+DATA_DIR: Path = PROJECT_ROOT / "data"
+STATIC_VECTORS: Path = DATA_DIR / "embeddings" / "static_vectors.npy"
+CONTEXTUAL_VECTORS: Path = DATA_DIR / "embeddings" / "contextual_vectors.npy"
+MANIFEST_JSON: Path = DATA_DIR / "manifest.json"
 
 
 def gen_manifest() -> dict:
@@ -48,13 +48,13 @@ def gen_manifest() -> dict:
         raise FileNotFoundError(
             f"static_vectors が見つかりません: {STATIC_VECTORS}"
         )
-    if not SBERT_VECTORS.exists():
+    if not CONTEXTUAL_VECTORS.exists():
         raise FileNotFoundError(
-            f"sbert_vectors が見つかりません: {SBERT_VECTORS}"
+            f"contextual_vectors が見つかりません: {CONTEXTUAL_VECTORS}"
         )
 
     static_arr = np.load(STATIC_VECTORS)
-    sbert_arr = np.load(SBERT_VECTORS)
+    contextual_arr = np.load(CONTEXTUAL_VECTORS)
 
     manifest = {
         "static_vectors": {
@@ -63,9 +63,9 @@ def gen_manifest() -> dict:
             "source": "Word2Vec trained on Brown + SimpleWiki",
             "training_date": "YYYY-MM-DD",
         },
-        "sbert_vectors": {
-            "shape": list(sbert_arr.shape),
-            "dtype": str(sbert_arr.dtype),
+        "contextual_vectors": {
+            "shape": list(contextual_arr.shape),
+            "dtype": str(contextual_arr.dtype),
             "model": "all-MiniLM-L6-v2",
             "encoding_type": "single-word embedding",
         },
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
     print(f"manifest.json を生成しました: {MANIFEST_JSON}")
-    print(f"- static_vectors: shape={manifest['static_vectors']['shape']}, "
+    print(f"- static_vectors:     shape={manifest['static_vectors']['shape']}, "
           f"dtype={manifest['static_vectors']['dtype']}")
-    print(f"- sbert_vectors:  shape={manifest['sbert_vectors']['shape']}, "
-          f"dtype={manifest['sbert_vectors']['dtype']}")
+    print(f"- contextual_vectors: shape={manifest['contextual_vectors']['shape']}, "
+          f"dtype={manifest['contextual_vectors']['dtype']}")

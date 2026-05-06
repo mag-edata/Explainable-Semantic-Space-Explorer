@@ -7,7 +7,7 @@ Analyzer の単体テスト。
     - enrich_distribution():    分布統計に中央値・四分位を付与
     - histogram():              ビン集計
     - attach_z_scores():        SearchResult に Z-score を付与
-    - compare_distributions():  static vs SBERT の分布比較
+    - compare_distributions():  static vs contextual の分布比較
     - neighborhood_stability(): Top-K の Jaccard 係数
 
 実行方法:
@@ -266,7 +266,7 @@ class TestCompareDistributions(unittest.TestCase):
             histogram_data=[0.0, 0.1, 0.2, 0.3, 0.4],
             top1=0.85,
         )
-        self.sbert_dist = _make_distribution(
+        self.contextual_dist = _make_distribution(
             query_word="king",
             histogram_data=[0.1, 0.2, 0.3, 0.4, 0.5],
             top1=0.70,
@@ -275,48 +275,48 @@ class TestCompareDistributions(unittest.TestCase):
     def test_returns_distribution_comparison(self) -> None:
         """戻り値が DistributionComparison であることを確認。"""
         cmp_ = Analyzer.compare_distributions(
-            "king", self.static_dist, self.sbert_dist,
+            "king", self.static_dist, self.contextual_dist,
         )
         self.assertIsInstance(cmp_, DistributionComparison)
 
     def test_query_word_preserved(self) -> None:
         """query_word が引き継がれることを確認。"""
         cmp_ = Analyzer.compare_distributions(
-            "king", self.static_dist, self.sbert_dist,
+            "king", self.static_dist, self.contextual_dist,
         )
         self.assertEqual(cmp_.query_word, "king")
 
     def test_mean_diff_value(self) -> None:
-        """mean_diff = static.mean - sbert.mean であることを確認。"""
+        """mean_diff = static.mean - contextual.mean であることを確認。"""
         cmp_ = Analyzer.compare_distributions(
-            "king", self.static_dist, self.sbert_dist,
+            "king", self.static_dist, self.contextual_dist,
         )
-        expected = self.static_dist["mean"] - self.sbert_dist["mean"]
+        expected = self.static_dist["mean"] - self.contextual_dist["mean"]
         self.assertAlmostEqual(cmp_.mean_diff, expected, places=5)
 
     def test_std_diff_value(self) -> None:
-        """std_diff = static.std - sbert.std であることを確認。"""
+        """std_diff = static.std - contextual.std であることを確認。"""
         cmp_ = Analyzer.compare_distributions(
-            "king", self.static_dist, self.sbert_dist,
+            "king", self.static_dist, self.contextual_dist,
         )
-        expected = self.static_dist["std"] - self.sbert_dist["std"]
+        expected = self.static_dist["std"] - self.contextual_dist["std"]
         self.assertAlmostEqual(cmp_.std_diff, expected, places=5)
 
     def test_z_score_diff_value(self) -> None:
-        """z_score_diff = static.z_score - sbert.z_score であることを確認。"""
+        """z_score_diff = static.z_score - contextual.z_score であることを確認。"""
         cmp_ = Analyzer.compare_distributions(
-            "king", self.static_dist, self.sbert_dist,
+            "king", self.static_dist, self.contextual_dist,
         )
-        expected = self.static_dist["z_score"] - self.sbert_dist["z_score"]
+        expected = self.static_dist["z_score"] - self.contextual_dist["z_score"]
         self.assertAlmostEqual(cmp_.z_score_diff, expected, places=5)
 
-    def test_static_and_sbert_stats_attached(self) -> None:
-        """static_stats / sbert_stats が DistributionStats として格納されることを確認。"""
+    def test_static_and_contextual_stats_attached(self) -> None:
+        """static_stats / contextual_stats が DistributionStats として格納されることを確認。"""
         cmp_ = Analyzer.compare_distributions(
-            "king", self.static_dist, self.sbert_dist,
+            "king", self.static_dist, self.contextual_dist,
         )
         self.assertIsInstance(cmp_.static_stats, DistributionStats)
-        self.assertIsInstance(cmp_.sbert_stats, DistributionStats)
+        self.assertIsInstance(cmp_.contextual_stats, DistributionStats)
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +340,7 @@ class TestNeighborhoodStability(unittest.TestCase):
 
     def test_partial_overlap_value(self) -> None:
         """部分一致時に Jaccard 係数が正しく算出される。"""
-        # static = {a, b, c}, sbert = {b, c, d} → 共通=2, 和=4 → 0.5
+        # static = {a, b, c}, contextual = {b, c, d} → 共通=2, 和=4 → 0.5
         a = [_make_search_result(w, i + 1, 0.5) for i, w in enumerate(["a", "b", "c"])]
         b = [_make_search_result(w, i + 1, 0.5) for i, w in enumerate(["b", "c", "d"])]
         self.assertAlmostEqual(Analyzer.neighborhood_stability(a, b), 2 / 4, places=5)
@@ -359,8 +359,8 @@ class TestNeighborhoodStability(unittest.TestCase):
         with self.assertRaises(ValueError):
             Analyzer.neighborhood_stability([], b)
 
-    def test_empty_sbert_raises(self) -> None:
-        """sbert_results が空の場合に ValueError が送出される。"""
+    def test_empty_contextual_raises(self) -> None:
+        """contextual_results が空の場合に ValueError が送出される。"""
         a = [_make_search_result("x", 1, 0.5)]
         with self.assertRaises(ValueError):
             Analyzer.neighborhood_stability(a, [])

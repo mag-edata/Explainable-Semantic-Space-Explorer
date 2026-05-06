@@ -13,7 +13,7 @@ from collections import Counter
 
 from nltk.corpus import brown
 
-from scripts.tokenizer import normalize_tokens
+from data_pipeline.tokenizer import normalize_tokens
 
 
 def gen_brown_vocab(min_freq: int = 10) -> set[str]:

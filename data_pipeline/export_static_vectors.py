@@ -26,8 +26,8 @@ from gensim.models import Word2Vec
 
 # ---------- 入出力パス（このスクリプト固有）----------
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-VOCAB_JSON: Path = PROJECT_ROOT / "assets" / "metadata" / "vocab.json"
-STATIC_VECTORS: Path = PROJECT_ROOT / "assets" / "embeddings" / "static_vectors.npy"
+VOCAB_JSON: Path = PROJECT_ROOT / "data" / "metadata" / "vocab.json"
+STATIC_VECTORS: Path = PROJECT_ROOT / "data" / "embeddings" / "static_vectors.npy"
 W2V_MODEL: Path = PROJECT_ROOT / "models" / "w2v_brown10_simplewiki10_sg_300d_w5.model"
 
 

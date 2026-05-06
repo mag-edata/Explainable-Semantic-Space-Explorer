@@ -1,6 +1,6 @@
 """
-test_cluster.py
-===============
+test_clustering.py
+==================
 KMeansClusterer の単体テスト。
 
 テスト対象:
@@ -12,7 +12,7 @@ KMeansClusterer の単体テスト。
     - 再現性（同一 seed → 同一結果）
 
 実行方法:
-    venv/bin/python3 -m unittest tests/test_cluster.py -v
+    venv/bin/python3 -m unittest tests/test_clustering.py -v
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from analysis.cluster import (
+from transforms.clustering import (
     ClusterResult,
     InvalidClusterCountError,
     KMeansClusterer,

@@ -3,7 +3,7 @@ embedding_loader.py
 ===================
 埋め込み資産の読み込みとインデックス整合チェック。
 
-assets/ ディレクトリ配下の全ファイルを読み込み、
+data/ ディレクトリ配下の全ファイルを読み込み、
 manifest.json に記載された期待値と実データを照合することで
 インデックス不整合を起動時に検出する。
 
@@ -11,10 +11,10 @@ manifest.json に記載された期待値と実データを照合することで
 SimilarityEngine への受け渡しは呼び出し側で行う（依存注入）。
 
 ディレクトリ構造:
-    assets/
+    data/
     ├── embeddings/
     │   ├── static_vectors.npy   # [N, 300] Word2Vec float32
-    │   └── sbert_vectors.npy    # [N, 384] SBERT float32
+    │   └── contextual_vectors.npy    # [N, 384] SBERT float32
     ├── metadata/
     │   ├── vocab.json           # {"vocab": [...]} リスト形式（ローダーが辞書に変換）
     │   └── vocab_pos.npy        # [N] 品詞ラベル配列
@@ -73,7 +73,7 @@ class EmbeddingLoader:
         from core.distance_metrics import DistanceMetrics
         from core.similarity_engine import SimilarityEngine
 
-        loader = EmbeddingLoader(Path("assets"))
+        loader = EmbeddingLoader(Path("data"))
         loader.load_all()
 
         static_engine = SimilarityEngine(
@@ -84,42 +84,42 @@ class EmbeddingLoader:
         )
 
     Attributes:
-        asset_root:      assets/ ディレクトリのパス
+        data_root:       data/ ディレクトリのパス
         emb_dir:         embeddings/ サブディレクトリのパス
         meta_dir:        metadata/ サブディレクトリのパス
-        static_vectors:  Word2Vec 埋め込み行列 shape (N, 300)
-        sbert_vectors:   SBERT 埋め込み行列 shape (N, 384)
+        static_vectors:      Word2Vec 静的埋め込み行列 shape (N, 300)
+        contextual_vectors:  SBERT 文脈埋め込み行列 shape (N, 384)
         vocab:           単語 → インデックスの辞書 {"word": index}
         pos:             品詞ラベル配列 shape (N,)
         manifest:        manifest.json の内容
     """
 
-    def __init__(self, asset_root: Path) -> None:
+    def __init__(self, data_root: Path) -> None:
         """EmbeddingLoader を初期化する。
 
         Args:
-            asset_root: assets/ ディレクトリへの Path オブジェクト。
+            data_root: data/ ディレクトリへの Path オブジェクト。
 
         Raises:
-            FileNotFoundError: asset_root が存在しないディレクトリの場合。
+            FileNotFoundError: data_root が存在しないディレクトリの場合。
         """
-        if not asset_root.exists():
+        if not data_root.exists():
             raise FileNotFoundError(
-                f"assets ディレクトリが見つかりません: {asset_root}"
+                f"data ディレクトリが見つかりません: {data_root}"
             )
 
-        self.asset_root: Path = asset_root
-        self.emb_dir: Path = asset_root / "embeddings"
-        self.meta_dir: Path = asset_root / "metadata"
+        self.data_root: Path = data_root
+        self.emb_dir: Path = data_root / "embeddings"
+        self.meta_dir: Path = data_root / "metadata"
 
         # load_all() 呼び出し後に設定される
         self.static_vectors: np.ndarray | None = None
-        self.sbert_vectors: np.ndarray | None = None
+        self.contextual_vectors: np.ndarray | None = None
         self.vocab: Dict[str, int] | None = None
         self.pos: np.ndarray | None = None
         self.manifest: dict | None = None
 
-        logger.info("EmbeddingLoader 初期化: asset_root=%s", asset_root)
+        logger.info("EmbeddingLoader 初期化: data_root=%s", data_root)
 
     def load_all(self) -> None:
         """全資産ファイルを読み込み、インデックス整合チェックを実行する。
@@ -154,7 +154,7 @@ class EmbeddingLoader:
         Raises:
             FileNotFoundError: manifest.json が存在しない場合。
         """
-        manifest_path = self.asset_root / "manifest.json"
+        manifest_path = self.data_root / "manifest.json"
         if not manifest_path.exists():
             raise FileNotFoundError(
                 f"manifest.json が見つかりません: {manifest_path}"
@@ -172,21 +172,21 @@ class EmbeddingLoader:
             FileNotFoundError: 埋め込みファイルが存在しない場合。
         """
         static_path = self.emb_dir / "static_vectors.npy"
-        sbert_path = self.emb_dir / "sbert_vectors.npy"
+        contextual_path = self.emb_dir / "contextual_vectors.npy"
 
-        for path in (static_path, sbert_path):
+        for path in (static_path, contextual_path):
             if not path.exists():
                 raise FileNotFoundError(
                     f"埋め込みファイルが見つかりません: {path}"
                 )
 
         self.static_vectors = np.load(static_path)
-        self.sbert_vectors = np.load(sbert_path)
+        self.contextual_vectors = np.load(contextual_path)
 
         logger.debug(
-            "埋め込み読み込み完了: static=%s, sbert=%s",
+            "埋め込み読み込み完了: static=%s, contextual=%s",
             self.static_vectors.shape,
-            self.sbert_vectors.shape,
+            self.contextual_vectors.shape,
         )
 
     def _load_metadata(self) -> None:
@@ -246,7 +246,7 @@ class EmbeddingLoader:
         """
         # 1. 未ロード確認
         if any(x is None for x in (
-            self.static_vectors, self.sbert_vectors, self.vocab, self.pos
+            self.static_vectors, self.contextual_vectors, self.vocab, self.pos
         )):
             raise EmbeddingLoaderError(
                 "load_all() を実行する前に _validate() が呼ばれました"
@@ -256,9 +256,9 @@ class EmbeddingLoader:
 
         # 2. N（語彙数）の一致確認
         checks: List[tuple[int, str]] = [
-            (self.static_vectors.shape[0], "static_vectors"),
-            (self.sbert_vectors.shape[0],  "sbert_vectors"),
-            (self.pos.shape[0],            "vocab_pos"),
+            (self.static_vectors.shape[0],     "static_vectors"),
+            (self.contextual_vectors.shape[0], "contextual_vectors"),
+            (self.pos.shape[0],                "vocab_pos"),
         ]
         for actual_n, name in checks:
             if actual_n != vocab_size:
@@ -268,8 +268,8 @@ class EmbeddingLoader:
                 )
 
         # 3. manifest.json との shape / dtype 照合
-        self._validate_against_manifest(self.static_vectors, "static_vectors")
-        self._validate_against_manifest(self.sbert_vectors,  "sbert_vectors")
+        self._validate_against_manifest(self.static_vectors,     "static_vectors")
+        self._validate_against_manifest(self.contextual_vectors, "contextual_vectors")
 
         # 4. vocab のインデックス値が 0..N-1 の連続整数であるか確認
         index_values = list(self.vocab.values())

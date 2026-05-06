@@ -10,7 +10,7 @@ tokenizer.py
 
 from typing import Iterable, List, Optional
 
-from scripts.token_definition import TOKEN_CONSTRAINT_PATTERN, TOKEN_EXTRACT_PATTERN
+from data_pipeline.token_definition import TOKEN_CONSTRAINT_PATTERN, TOKEN_EXTRACT_PATTERN
 
 
 def normalize_tokens(tokens: Iterable[str]) -> List[str]:

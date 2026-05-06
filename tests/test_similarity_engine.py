@@ -147,18 +147,18 @@ class TestCompare(unittest.TestCase):
         result = self.engine_a.compare("word0", other=self.engine_b, top_k=3)
         self.assertEqual(result.query_word, "word0")
 
-    def test_static_and_sbert_results_lengths(self) -> None:
-        """static_results と sbert_results の件数が top_k 以内であることを確認。"""
+    def test_static_and_contextual_results_lengths(self) -> None:
+        """static_results と contextual_results の件数が top_k 以内であることを確認。"""
         result = self.engine_a.compare("word0", other=self.engine_b, top_k=3)
         self.assertLessEqual(len(result.static_results), 3)
-        self.assertLessEqual(len(result.sbert_results), 3)
+        self.assertLessEqual(len(result.contextual_results), 3)
 
     def test_common_words_subset(self) -> None:
-        """common_words が static_results と sbert_results の語彙の共通部分であることを確認。"""
+        """common_words が static_results と contextual_results の語彙の共通部分であることを確認。"""
         result = self.engine_a.compare("word0", other=self.engine_b, top_k=4)
         static_words = {r.word for r in result.static_results}
-        sbert_words  = {r.word for r in result.sbert_results}
-        expected_common = static_words & sbert_words
+        contextual_words  = {r.word for r in result.contextual_results}
+        expected_common = static_words & contextual_words
         self.assertEqual(set(result.common_words), expected_common)
 
     def test_rank_diff_keys_are_common_words(self) -> None:

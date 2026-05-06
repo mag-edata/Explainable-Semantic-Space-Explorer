@@ -56,14 +56,14 @@ NLP の実務では単語埋め込みが広く使われているが、その挙�
 依存方向は一方向のみ。逆流禁止。
 
 ```
-assets/ ──► core/ ──► analysis/ ──► ui/app.py
+data/ ──► core/ ──► transforms/ ──► ui/app.py
 ```
 
 | 層 | 役割 |
 |---|---|
-| `assets/` | 埋め込みデータ（読み取り専用） |
+| `data/` | 埋め込みデータ（読み取り専用） |
 | `core/` | 距離計算・検索・統計など純粋ロジック |
-| `analysis/` | PCA・UMAP・KMeans など可視化前処理 |
+| `transforms/` | PCA・UMAP・KMeans などベクトル変換 |
 | `ui/` | Streamlit で表示するだけ。ロジック記述禁止 |
 
 例：
@@ -140,13 +140,13 @@ SBERT は文脈を考慮して動的にベクトルを生成する。
 - 埋め込み空間の「説明可能性」を設計としてどう組み込むか
 - 外部 API に依存しないローカル完結 NLP パイプラインの構築
 - 静的 vs 文脈埋め込みの差異を定量的に可視化・比較するアーキテクチャ
-- 192テストによるコアロジックの品質担保（core 層 + analysis 層を網羅）
+- 192テストによるコアロジックの品質担保（core 層 + transforms 層を網羅）
 
 ---
 
 ## Demo
 
-> *(Pending: `assets/` の埋め込みファイルが大容量のため Streamlit Cloud へのデプロイを検討中)*
+> *(Pending: `data/` の埋め込みファイルが大容量のため Streamlit Cloud へのデプロイを検討中)*
 
 ローカルでの動作確認は「セットアップ」を参照。
 
@@ -174,11 +174,11 @@ python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
 #    → models/w2v_brown10_simplewiki10_sg_300d_w5.model
 
 # 6. 資産ファイルの生成（初回のみ。HuggingFace へのアクセスが必要）
-python -m scripts.merge_vocab             # → assets/metadata/vocab.json
-python -m scripts.export_static_vectors  # → assets/embeddings/static_vectors.npy
-python -m scripts.export_sbert_vectors   # → assets/embeddings/sbert_vectors.npy
-python -m scripts.export_vocab_pos       # → assets/metadata/vocab_pos.npy
-python -m scripts.gen_manifest           # → assets/manifest.json
+python -m data_pipeline.merge_vocab             # → data/metadata/vocab.json
+python -m data_pipeline.export_static_vectors  # → data/embeddings/static_vectors.npy
+python -m data_pipeline.export_contextual_vectors   # → data/embeddings/contextual_vectors.npy
+python -m data_pipeline.export_vocab_pos       # → data/metadata/vocab_pos.npy
+python -m data_pipeline.gen_manifest           # → data/manifest.json
 
 # 7. アプリ起動
 venv/bin/python3 -m streamlit run ui/app.py
@@ -202,10 +202,10 @@ venv/bin/python3 -m streamlit run ui/app.py
 
 ```
 Explainable-Semantic-Space-Explorer/
-├── assets/                        # 埋め込みベクトル・メタデータ（Git管理外）
+├── data/                        # 埋め込みベクトル・メタデータ（Git管理外）
 │   ├── embeddings/
 │   │   ├── static_vectors.npy     # Word2Vec  shape (83823, 300)
-│   │   └── sbert_vectors.npy      # SBERT     shape (83823, 384)
+│   │   └── contextual_vectors.npy      # SBERT     shape (83823, 384)
 │   ├── metadata/
 │   │   ├── vocab.json             # 語彙リスト
 │   │   └── vocab_pos.npy          # 品詞ラベル配列 shape (83823,)
@@ -218,8 +218,8 @@ Explainable-Semantic-Space-Explorer/
 │   ├── pos_filter.py              # 品詞フィルタリング
 │   └── analyzer.py                # 距離分布の統計分析
 │
-├── analysis/                      # 可視化前処理層
-│   ├── cluster.py                 # KMeans クラスタリング
+├── transforms/                    # ベクトル変換層
+│   ├── clustering.py              # KMeans クラスタリング
 │   └── projection.py              # PCA / UMAP による 2D 投影
 │
 ├── ui/
@@ -231,14 +231,17 @@ Explainable-Semantic-Space-Explorer/
 │   ├── test_embedding_loader.py
 │   ├── test_pos_filter.py
 │   ├── test_analyzer.py
-│   ├── test_cluster.py
+│   ├── test_clustering.py
 │   └── test_projection.py
 │
-├── scripts/                       # 資産生成スクリプト群（セットアップ時のみ実行）
-│   ├── paths.py
+├── data_pipeline/                 # 資産生成パイプライン（セットアップ時のみ実行）
+│   ├── token_definition.py
+│   ├── tokenizer.py
+│   ├── gen_brown_vocab.py
+│   ├── gen_wiki_vocab.py
 │   ├── merge_vocab.py
 │   ├── export_static_vectors.py
-│   ├── export_sbert_vectors.py
+│   ├── export_contextual_vectors.py
 │   ├── export_vocab_pos.py
 │   └── gen_manifest.py
 │

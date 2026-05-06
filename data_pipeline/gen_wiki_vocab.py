@@ -15,7 +15,7 @@ from collections import Counter
 
 from datasets import load_dataset
 
-from scripts.tokenizer import tokenize_text
+from data_pipeline.tokenizer import tokenize_text
 
 
 def gen_wiki_vocab(min_freq: int = 10) -> set[str]:

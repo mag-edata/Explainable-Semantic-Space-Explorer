@@ -15,12 +15,12 @@ merge_vocab.py
 import json
 from pathlib import Path
 
-from scripts.gen_brown_vocab import gen_brown_vocab
-from scripts.gen_wiki_vocab import gen_wiki_vocab
+from data_pipeline.gen_brown_vocab import gen_brown_vocab
+from data_pipeline.gen_wiki_vocab import gen_wiki_vocab
 
 # ---------- 入出力パス（このスクリプト固有）----------
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-VOCAB_JSON: Path = PROJECT_ROOT / "assets" / "metadata" / "vocab.json"
+VOCAB_JSON: Path = PROJECT_ROOT / "data" / "metadata" / "vocab.json"
 
 
 def merge_vocab() -> list[str]:

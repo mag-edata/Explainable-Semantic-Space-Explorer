@@ -5,7 +5,7 @@
     "source": "Word2Vec trained on Brown + SimpleWiki",
     "training_date": "YYYY-MM-DD"
   },
-  "sbert_vectors": {
+  "contextual_vectors": {
     "shape": [83823, 384],
     "dtype": "float32",
     "model": "all-MiniLM-L6-v2",

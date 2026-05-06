@@ -4,7 +4,7 @@ similarity_engine.py
 単語埋め込み空間における類似度検索エンジン。
 
 単一の埋め込み行列を担当するシングルモデル設計。
-static (Word2Vec) と SBERT の比較は、それぞれのエンジンを
+static (Word2Vec) と contextual (SBERT) の比較は、それぞれのエンジンを
 インスタンス化して compare() に渡すことで実現する。
 
 外部ライブラリによる距離計算は一切使用しない。
@@ -12,7 +12,7 @@ static (Word2Vec) と SBERT の比較は、それぞれのエンジンを
 
 使用例::
 
-    loader = EmbeddingLoader(Path("assets"))
+    loader = EmbeddingLoader(Path("data"))
     loader.load_all()
     metrics = DistanceMetrics()
 
@@ -22,15 +22,15 @@ static (Word2Vec) と SBERT の比較は、それぞれのエンジンを
         pos_tags=loader.pos,
         metrics=metrics,
     )
-    sbert_engine = SimilarityEngine(
-        vectors=loader.sbert_vectors,
+    contextual_engine = SimilarityEngine(
+        vectors=loader.contextual_vectors,
         vocab=loader.vocab,
         pos_tags=loader.pos,
         metrics=metrics,
     )
 
     results     = static_engine.search("king", top_k=10)
-    comparison  = static_engine.compare("king", other=sbert_engine, top_k=10)
+    comparison  = static_engine.compare("king", other=contextual_engine, top_k=10)
     dist        = static_engine.get_distance_distribution("king")
 """
 
@@ -101,26 +101,26 @@ class ComparisonResult:
 
     compare(query, other) を呼んだとき、
     self のエンジン結果が static_results、
-    other のエンジン結果が sbert_results に格納される。
+    other のエンジン結果が contextual_results に格納される。
 
     Attributes:
-        query_word:      クエリ単語
-        static_results:  self エンジンによる Top-K 検索結果
-        sbert_results:   other エンジンによる Top-K 検索結果
-        common_words:    両エンジンに共通する単語リスト（アルファベット順）
-        static_only:     self エンジンのみに出現する単語リスト（アルファベット順）
-        sbert_only:      other エンジンのみに出現する単語リスト（アルファベット順）
-        rank_diff:       共通語ごとの順位差 {word: static順位 - sbert順位}
-                         正値 = static で低順位（下位）、負値 = SBERT で低順位
-        similarity_diff: 共通語ごとの類似度差 {word: static類似度 - sbert類似度}
+        query_word:          クエリ単語
+        static_results:      self エンジンによる Top-K 検索結果
+        contextual_results:  other エンジンによる Top-K 検索結果
+        common_words:        両エンジンに共通する単語リスト（アルファベット順）
+        static_only:         self エンジンのみに出現する単語リスト（アルファベット順）
+        contextual_only:     other エンジンのみに出現する単語リスト（アルファベット順）
+        rank_diff:           共通語ごとの順位差 {word: static順位 - contextual順位}
+                             正値 = static で低順位（下位）、負値 = contextual で低順位
+        similarity_diff:     共通語ごとの類似度差 {word: static類似度 - contextual類似度}
     """
 
     query_word: str
     static_results: List[SearchResult]
-    sbert_results: List[SearchResult]
+    contextual_results: List[SearchResult]
     common_words: List[str]
     static_only: List[str]
-    sbert_only: List[str]
+    contextual_only: List[str]
     rank_diff: Dict[str, int]
     similarity_diff: Dict[str, float]
 
@@ -132,8 +132,8 @@ class ComparisonResult:
 class SimilarityEngine:
     """単語埋め込み空間における類似度検索エンジン（単一モデル）。
 
-    1インスタンスが1つの埋め込み行列（static または SBERT）を担当する。
-    static vs SBERT の比較は compare(other=sbert_engine) で実行する。
+    1インスタンスが1つの埋め込み行列（static または contextual）を担当する。
+    static vs contextual の比較は compare(other=contextual_engine) で実行する。
 
     EmbeddingLoader には依存しない。
     vectors / vocab / pos_tags / metrics を直接注入する（依存注入）。
@@ -269,8 +269,8 @@ class SimilarityEngine:
         """self エンジンと other エンジンの Top-K 類似語を比較分析する。
 
         self.search() の結果が static_results に、
-        other.search() の結果が sbert_results に格納される。
-        呼び出し例: static_engine.compare("king", other=sbert_engine)
+        other.search() の結果が contextual_results に格納される。
+        呼び出し例: static_engine.compare("king", other=contextual_engine)
 
         Args:
             query_word: 検索クエリ単語。
@@ -294,43 +294,43 @@ class SimilarityEngine:
 
         # 両エンジンの公開メソッドのみ使用（実装詳細に依存しない）
         static_results: List[SearchResult] = self.search(query_word, top_k=top_k)
-        sbert_results: List[SearchResult] = other.search(query_word, top_k=top_k)
+        contextual_results: List[SearchResult] = other.search(query_word, top_k=top_k)
 
         # 集合演算で共通語・固有語を算出
         static_word_set: set[str] = {r.word for r in static_results}
-        sbert_word_set: set[str] = {r.word for r in sbert_results}
+        contextual_word_set: set[str] = {r.word for r in contextual_results}
 
-        common_words: List[str] = sorted(static_word_set & sbert_word_set)
-        static_only: List[str] = sorted(static_word_set - sbert_word_set)
-        sbert_only: List[str] = sorted(sbert_word_set - static_word_set)
+        common_words: List[str] = sorted(static_word_set & contextual_word_set)
+        static_only: List[str] = sorted(static_word_set - contextual_word_set)
+        contextual_only: List[str] = sorted(contextual_word_set - static_word_set)
 
         # 共通語ごとの順位差・類似度差を計算
         static_rank_map: Dict[str, int] = {r.word: r.rank for r in static_results}
-        sbert_rank_map: Dict[str, int] = {r.word: r.rank for r in sbert_results}
+        contextual_rank_map: Dict[str, int] = {r.word: r.rank for r in contextual_results}
         static_sim_map: Dict[str, float] = {r.word: r.similarity for r in static_results}
-        sbert_sim_map: Dict[str, float] = {r.word: r.similarity for r in sbert_results}
+        contextual_sim_map: Dict[str, float] = {r.word: r.similarity for r in contextual_results}
 
         rank_diff: Dict[str, int] = {
-            word: static_rank_map[word] - sbert_rank_map[word]
+            word: static_rank_map[word] - contextual_rank_map[word]
             for word in common_words
         }
         similarity_diff: Dict[str, float] = {
-            word: static_sim_map[word] - sbert_sim_map[word]
+            word: static_sim_map[word] - contextual_sim_map[word]
             for word in common_words
         }
 
         logger.info(
-            "compare 完了: query=%s, 共通=%d語, static固有=%d語, sbert固有=%d語",
-            query_word, len(common_words), len(static_only), len(sbert_only),
+            "compare 完了: query=%s, 共通=%d語, static固有=%d語, 文脈固有=%d語",
+            query_word, len(common_words), len(static_only), len(contextual_only),
         )
 
         return ComparisonResult(
             query_word=query_word,
             static_results=static_results,
-            sbert_results=sbert_results,
+            contextual_results=contextual_results,
             common_words=common_words,
             static_only=static_only,
-            sbert_only=sbert_only,
+            contextual_only=contextual_only,
             rank_diff=rank_diff,
             similarity_diff=similarity_diff,
         )

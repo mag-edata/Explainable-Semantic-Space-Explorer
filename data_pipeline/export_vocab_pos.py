@@ -26,8 +26,8 @@ from nltk import pos_tag
 
 # ---------- 入出力パス（このスクリプト固有）----------
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-VOCAB_JSON: Path = PROJECT_ROOT / "assets" / "metadata" / "vocab.json"
-VOCAB_POS: Path = PROJECT_ROOT / "assets" / "metadata" / "vocab_pos.npy"
+VOCAB_JSON: Path = PROJECT_ROOT / "data" / "metadata" / "vocab.json"
+VOCAB_POS: Path = PROJECT_ROOT / "data" / "metadata" / "vocab_pos.npy"
 
 # ---------- POS マッピング ----------
 POS_MAP = {

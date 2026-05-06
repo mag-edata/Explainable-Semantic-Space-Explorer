@@ -17,7 +17,7 @@
 
 フェーズ1（実装）は完了済み。現在の最優先事項は Streamlit Cloud デプロイである。
 
-**ブロッカー:** `assets/` の埋め込みファイルが大容量のため、Git 管理・デプロイ手段を検討中。
+**ブロッカー:** `data/` の埋め込みファイルが大容量のため、Git 管理・デプロイ手段を検討中。
 解決策（Git LFS 等）確定後、即デプロイする。
 
 ### デプロイ後に改善する
@@ -61,7 +61,7 @@ DOCS/
 ## 絶対制約（違反禁止）
 
 1. 外部 API 禁止（OpenAI 等）
-2. HuggingFace オンラインダウンロード禁止（セットアップ時 scripts/ 実行時のみ許可）
+2. HuggingFace オンラインダウンロード禁止（セットアップ時 data_pipeline/ 実行時のみ許可）
 3. **コサイン類似度は自前実装**（scipy / sklearn の `cosine_similarity` 使用禁止）
 4. ローカル CPU 環境のみで動作保証
 5. 推論時の学習処理禁止
@@ -72,7 +72,7 @@ DOCS/
 
 ## 資産ファイルの生成前提（セットアップ）
 
-`assets/` の `.npy` / `.json` は Git 管理外（大容量のため）。
+`data/` の `.npy` / `.json` は Git 管理外（大容量のため）。
 別途以下を実行してから資産を生成・配置すること。
 
 ```bash
@@ -86,10 +86,10 @@ python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
 ## 資産ファイル（既存・変更禁止）
 
 ```
-assets/
+data/
 ├── embeddings/
 │   ├── static_vectors.npy    # [83823, 300]  Word2Vec  float32
-│   └── sbert_vectors.npy     # [83823, 384]  SBERT     float32
+│   └── contextual_vectors.npy     # [83823, 384]  SBERT     float32
 ├── metadata/
 │   ├── vocab.json            # {"vocab": ["word0", ...]}  ← リスト形式（ローダーが Dict[str,int] に変換）
 │   └── vocab_pos.npy         # [83823]  品詞ラベル配列  ← ファイル名注意（pos.npy ではない）
@@ -101,15 +101,15 @@ assets/
 ## アーキテクチャ（3層・依存方向厳守）
 
 ```
-assets/ ──► core/ ──► analysis/ ──► ui/app.py
+data/ ──► core/ ──► transforms/ ──► ui/app.py
 ```
 
 | 層 | ディレクトリ | ルール |
 |---|---|---|
-| データ | `assets/` | 読み取り専用 |
+| データ | `data/` | 読み取り専用 |
 | ロジック | `core/` | Streamlit 禁止、外部 API 禁止 |
-| 前処理 | `analysis/` | core に依存可、ui に依存禁止 |
-| UI | `ui/` | core / analysis を呼ぶだけ。ロジック記述禁止 |
+| 変換 | `transforms/` | core に依存可、ui に依存禁止 |
+| UI | `ui/` | core / transforms を呼ぶだけ。ロジック記述禁止 |
 
 ---
 
@@ -143,7 +143,7 @@ assets/ ──► core/ ──► analysis/ ──► ui/app.py
 
 ```
 Explainable-Semantic-Space-Explorer/
-├── assets/                      （上記参照・Git管理外）
+├── data/                        （上記参照・Git管理外）
 ├── core/
 │   ├── __init__.py              ✅ 完成
 │   ├── embedding_loader.py      ✅ 完成
@@ -151,10 +151,10 @@ Explainable-Semantic-Space-Explorer/
 │   ├── distance_metrics.py      ✅ 完成
 │   ├── pos_filter.py            ✅ 完成
 │   └── analyzer.py              ✅ 完成
-├── analysis/
+├── transforms/
 │   ├── __init__.py              ✅ 完成
 │   ├── projection.py            ✅ 完成（PCA / UMAP）
-│   └── cluster.py               ✅ 完成（コサイン KMeans）
+│   └── clustering.py            ✅ 完成（コサイン KMeans）
 ├── ui/
 │   └── app.py                   ✅ 完成（Streamlit 4タブ）
 ├── tests/
@@ -164,9 +164,9 @@ Explainable-Semantic-Space-Explorer/
 │   ├── test_embedding_loader.py ✅ 完成（16テスト）
 │   ├── test_pos_filter.py       ✅ 完成（29テスト）
 │   ├── test_analyzer.py         ✅ 完成（31テスト）
-│   ├── test_cluster.py          ✅ 完成（29テスト）
+│   ├── test_clustering.py       ✅ 完成（29テスト）
 │   └── test_projection.py       ✅ 完成（32テスト）
-├── scripts/                     ✅ 統合完了（A 案：paths.py 廃止）
+├── data_pipeline/               ✅ 統合完了（A 案：paths.py 廃止）
 │   ├── __init__.py
 │   ├── token_definition.py
 │   ├── tokenizer.py
@@ -174,19 +174,19 @@ Explainable-Semantic-Space-Explorer/
 │   ├── gen_wiki_vocab.py
 │   ├── merge_vocab.py
 │   ├── export_static_vectors.py
-│   ├── export_sbert_vectors.py
+│   ├── export_contextual_vectors.py
 │   ├── export_vocab_pos.py
 │   └── gen_manifest.py
 ├── models/                      ✅ 配置先のみ作成（モデル本体は Git 管理外）
 │   └── .gitkeep
-├── tmp/                         ⚠ scripts/ 統合済み・削除推奨（mag が手動）
+├── tmp/                         ⚠ data_pipeline/ 統合済み・削除推奨（mag が手動）
 ├── DOCS/
 │   ├── 要件定義書.md
 │   ├── 基本設計書.md
 │   ├── 詳細設計書.md
 │   ├── テスト設計書.md
 │   ├── テスト項目書.md
-│   └── SCRIPTS_INTEGRATION_PLAN.md
+│   └── DATA_PIPELINE_REFACTOR_PLAN.md
 ├── CLAUDE.md                    ✅ 本ファイル
 └── requirements.txt             ✅ 作成済み
 ```
@@ -202,7 +202,7 @@ EmbeddingLoaderError          # 基底例外
 IndexAlignmentError           # N（語彙数）不一致
 ManifestViolationError        # shape/dtype が manifest と乖離
 
-EmbeddingLoader(asset_root: Path)
+EmbeddingLoader(data_root: Path)
   load_all()                  # 唯一の公開 API。以下を順番に呼ぶ
   _load_manifest()
   _load_embeddings()
@@ -216,7 +216,7 @@ EmbeddingLoader(asset_root: Path)
 | 変数 | 型 | 内容 |
 |---|---|---|
 | `static_vectors` | `np.ndarray` | shape (83823, 300) |
-| `sbert_vectors` | `np.ndarray` | shape (83823, 384) |
+| `contextual_vectors` | `np.ndarray` | shape (83823, 384) |
 | `vocab` | `Dict[str, int]` | `{"word": index}`（ローダーがリスト形式から変換） |
 | `pos` | `np.ndarray` | shape (83823,) |
 | `manifest` | `dict` | manifest.json の中身 |
@@ -234,8 +234,8 @@ SearchResult (dataclass)
   word, index, similarity, rank, pos_tag, pos_rank, explanation
 
 ComparisonResult (dataclass)
-  query_word, static_results, sbert_results
-  common_words, static_only, sbert_only
+  query_word, static_results, contextual_results
+  common_words, static_only, contextual_only
   rank_diff, similarity_diff
 
 SimilarityEngine(vectors, vocab, pos_tags, metrics)
@@ -254,7 +254,7 @@ SimilarityEngine(vectors, vocab, pos_tags, metrics)
 **標準的な呼び出しパターン:**
 
 ```python
-loader = EmbeddingLoader(Path("assets"))
+loader = EmbeddingLoader(Path("data"))
 loader.load_all()
 metrics = DistanceMetrics()
 
@@ -264,21 +264,21 @@ static_engine = SimilarityEngine(
     pos_tags=loader.pos,
     metrics=metrics,
 )
-sbert_engine = SimilarityEngine(
-    vectors=loader.sbert_vectors,
+contextual_engine = SimilarityEngine(
+    vectors=loader.contextual_vectors,
     vocab=loader.vocab,
     pos_tags=loader.pos,
     metrics=metrics,
 )
 
 results    = static_engine.search("king", top_k=10)
-comparison = static_engine.compare("king", other=sbert_engine, top_k=10)
+comparison = static_engine.compare("king", other=contextual_engine, top_k=10)
 dist       = static_engine.get_distance_distribution("king")
 ```
 
 ---
 
-### analysis/cluster.py
+### transforms/clustering.py
 
 ```
 ClusterError / NotFittedError / InvalidClusterCountError / UnfitVectorError
@@ -301,7 +301,7 @@ KMeansClusterer(n_clusters=8, seed=42, max_iter=300)
 
 ---
 
-### analysis/projection.py
+### transforms/projection.py
 
 ```
 ProjectionError / NotFittedError / InvalidMethodError / InvalidVectorError
@@ -351,8 +351,8 @@ Projector(method="pca", seed=42)
 | タスク | 状態 | 備考 |
 |--------|------|------|
 | core/ 全ファイル | ✅ 完了 | 5ファイル |
-| analysis/cluster.py | ✅ 完了 | コサイン KMeans |
-| analysis/projection.py | ✅ 完了 | PCA / UMAP |
+| transforms/clustering.py | ✅ 完了 | コサイン KMeans |
+| transforms/projection.py | ✅ 完了 | PCA / UMAP |
 | ui/app.py | ✅ 完了 | Streamlit 4タブ |
 | tests/ | ✅ 完了 | 192テスト全通過 |
 | GitHub 公開 | ✅ 完了 | |
@@ -363,8 +363,9 @@ Projector(method="pca", seed=42)
 
 | 項目 | 状態 | 備考 |
 |------|------|------|
-| Streamlit Cloud デプロイ | ⬜ 未着手 | assets/ 大容量問題（Git LFS 等の解決策を検討中） |
-| scripts/ 正式統合 | ✅ 完了 | A 案（paths.py 廃止）で 2026-05-06 統合（DOCS/SCRIPTS_INTEGRATION_PLAN.md 参照） |
+| Streamlit Cloud デプロイ | ⬜ 未着手 | data/ 大容量問題（Git LFS 等の解決策を検討中） |
+| data_pipeline/ 正式統合 | ✅ 完了 | A 案（paths.py 廃止）で 2026-05-06 統合（git log 参照） |
+| data_pipeline/ サブパッケージ化（C案） | ⬜ 未着手 | DOCS/DATA_PIPELINE_REFACTOR_PLAN.md に NEXT ACTION 計画あり |
 
 ### フェーズ3（改善）
 
@@ -375,26 +376,26 @@ Projector(method="pca", seed=42)
 
 ---
 
-## scripts/ 組み込み（完了）
+## data_pipeline/ 組み込み（完了）
 
 > **2026-05-06 記録**
 
-`tmp/` の資産生成スクリプト群を `scripts/` パッケージとして正式統合済み。
-詳細: `DOCS/SCRIPTS_INTEGRATION_PLAN.md`
+`tmp/` の資産生成スクリプト群を `data_pipeline/` パッケージとして正式統合済み。
+履歴は git log を参照。次のリファクタ計画は `DOCS/DATA_PIPELINE_REFACTOR_PLAN.md`。
 
 **設計方針 (A 案):** `paths.py` は廃止し、各スクリプト先頭でパスを inline 定義する。
 `core/` および `ui/` がすでに inline 方式である点との対称性を優先した。
 
 ```
-scripts/
+data_pipeline/
 ├── __init__.py            # 空（パッケージ化マーカー）
 ├── token_definition.py    # tmp/ から移植（変更なし）
 ├── tokenizer.py           # tmp/ から移植（変更なし）
-├── gen_brown_vocab.py     # import を scripts.* へ修正
-├── gen_wiki_vocab.py      # import を scripts.* へ修正
+├── gen_brown_vocab.py     # import を data_pipeline.* へ修正
+├── gen_wiki_vocab.py      # import を data_pipeline.* へ修正
 ├── merge_vocab.py         # import 修正・パス inline 化
 ├── export_static_vectors.py  # import 修正・パス inline 化・STATIC_WORDS 廃止
-├── export_sbert_vectors.py   # import 修正・パス inline 化・SBERT_WORDS 廃止
+├── export_contextual_vectors.py   # import 修正・パス inline 化・CONTEXTUAL_WORDS 廃止
 ├── export_vocab_pos.py    # import 修正・パス inline 化
 └── gen_manifest.py        # 新規（manifest.json 生成）
 

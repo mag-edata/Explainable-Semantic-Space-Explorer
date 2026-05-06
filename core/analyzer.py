@@ -8,7 +8,7 @@ SimilarityEngine.get_distance_distribution() の出力を受け取り、
 
 - 各 SearchResult に対する Z-score の付与
 - ヒストグラムのビン集計（可視化用）
-- static vs SBERT の分布比較
+- static vs contextual の分布比較
 - 近傍安定性スコア（Top-K の重複率）
 
 DistanceMetrics・SimilarityEngine には依存しない（分析のみ）。
@@ -98,21 +98,21 @@ class HistogramData:
 
 @dataclass
 class DistributionComparison:
-    """static vs SBERT の分布比較結果。
+    """static vs contextual の分布比較結果。
 
     Attributes:
         query_word:      クエリ単語
         static_stats:    static エンジンの分布統計
-        sbert_stats:     SBERT エンジンの分布統計
-        mean_diff:       平均コサイン類似度の差 (static - sbert)
-        std_diff:        標準偏差の差 (static - sbert)
-        z_score_diff:    Z-score の差 (static - sbert)
+        contextual_stats:     contextual エンジンの分布統計
+        mean_diff:       平均コサイン類似度の差 (static - contextual)
+        std_diff:        標準偏差の差 (static - contextual)
+        z_score_diff:    Z-score の差 (static - contextual)
                          正値 = static の方が Top-1 が際立っている
     """
 
     query_word: str
     static_stats: DistributionStats
-    sbert_stats: DistributionStats
+    contextual_stats: DistributionStats
     mean_diff: float
     std_diff: float
     z_score_diff: float
@@ -139,8 +139,8 @@ class Analyzer:
         scored = Analyzer.attach_z_scores(result_scores, dist)
 
         static_dist = static_engine.get_distance_distribution("king")
-        sbert_dist  = sbert_engine.get_distance_distribution("king")
-        cmp = Analyzer.compare_distributions("king", static_dist, sbert_dist)
+        contextual_dist  = contextual_engine.get_distance_distribution("king")
+        cmp = Analyzer.compare_distributions("king", static_dist, contextual_dist)
     """
 
     @staticmethod
@@ -301,9 +301,9 @@ class Analyzer:
     def compare_distributions(
         query_word: str,
         static_dist: dict,
-        sbert_dist: dict,
+        contextual_dist: dict,
     ) -> DistributionComparison:
-        """static と SBERT の距離分布を比較する。
+        """static と contextual の距離分布を比較する。
 
         両モデルの mean / std / z_score の差分を算出する。
         差分の解釈:
@@ -313,7 +313,7 @@ class Analyzer:
         Args:
             query_word:  クエリ単語。
             static_dist: static エンジンの get_distance_distribution() 返り値。
-            sbert_dist:  SBERT エンジンの get_distance_distribution() 返り値。
+            contextual_dist:  contextual エンジンの get_distance_distribution() 返り値。
 
         Returns:
             DistributionComparison: 両分布の比較結果。
@@ -323,11 +323,11 @@ class Analyzer:
             KeyError:              必須キーが存在しない場合。
         """
         static_stats = Analyzer.enrich_distribution(static_dist)
-        sbert_stats = Analyzer.enrich_distribution(sbert_dist)
+        contextual_stats = Analyzer.enrich_distribution(contextual_dist)
 
-        mean_diff: float = static_stats.mean - sbert_stats.mean
-        std_diff: float = static_stats.std - sbert_stats.std
-        z_score_diff: float = static_stats.z_score - sbert_stats.z_score
+        mean_diff: float = static_stats.mean - contextual_stats.mean
+        std_diff: float = static_stats.std - contextual_stats.std
+        z_score_diff: float = static_stats.z_score - contextual_stats.z_score
 
         logger.info(
             "compare_distributions: query=%s, "
@@ -338,7 +338,7 @@ class Analyzer:
         return DistributionComparison(
             query_word=query_word,
             static_stats=static_stats,
-            sbert_stats=sbert_stats,
+            contextual_stats=contextual_stats,
             mean_diff=mean_diff,
             std_diff=std_diff,
             z_score_diff=z_score_diff,
@@ -347,19 +347,19 @@ class Analyzer:
     @staticmethod
     def neighborhood_stability(
         static_results: List[SearchResult],
-        sbert_results: List[SearchResult],
+        contextual_results: List[SearchResult],
     ) -> float:
         """Top-K 結果の近傍安定性スコアを計算する。
 
-        static と SBERT の Top-K 結果の重複率（Jaccard 係数）を返す。
+        static と contextual の Top-K 結果の重複率（Jaccard 係数）を返す。
         値が高いほど、両モデルで一致する近傍を持つ（安定した意味空間）。
 
         計算式:
-            stability = |static ∩ sbert| / |static ∪ sbert|
+            stability = |static ∩ contextual| / |static ∪ contextual|
 
         Args:
             static_results: static エンジンの Top-K 検索結果。
-            sbert_results:  SBERT エンジンの Top-K 検索結果。
+            contextual_results:  contextual エンジンの Top-K 検索結果。
 
         Returns:
             float: Jaccard 係数。範囲: [0.0, 1.0]。
@@ -371,14 +371,14 @@ class Analyzer:
         """
         if not static_results:
             raise ValueError("static_results が空です")
-        if not sbert_results:
-            raise ValueError("sbert_results が空です")
+        if not contextual_results:
+            raise ValueError("contextual_results が空です")
 
         static_words: set[str] = {r.word for r in static_results}
-        sbert_words: set[str] = {r.word for r in sbert_results}
+        contextual_words: set[str] = {r.word for r in contextual_results}
 
-        intersection = len(static_words & sbert_words)
-        union = len(static_words | sbert_words)
+        intersection = len(static_words & contextual_words)
+        union = len(static_words | contextual_words)
 
         stability: float = intersection / union if union > 0 else 0.0
 

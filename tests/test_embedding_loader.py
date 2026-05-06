@@ -45,10 +45,10 @@ def _build_mock_assets(
     tmpdir: Path,
     n: int = 5,
     static_dim: int = 4,
-    sbert_dim: int = 8,
+    contextual_dim: int = 8,
     seed: int = 42,
     static_shape_override: tuple | None = None,
-    sbert_shape_override: tuple | None = None,
+    contextual_shape_override: tuple | None = None,
     vocab_override: dict | None = None,
     pos_n_override: int | None = None,
     dtype_override: str | None = None,
@@ -59,10 +59,10 @@ def _build_mock_assets(
         tmpdir:               一時ディレクトリのパス
         n:                    語彙数
         static_dim:           static ベクトルの次元数
-        sbert_dim:            sbert ベクトルの次元数
+        contextual_dim:            contextual ベクトル(SBERT)の次元数
         seed:                 乱数シード
         static_shape_override: manifest の static_vectors.shape を上書き
-        sbert_shape_override:  manifest の sbert_vectors.shape を上書き
+        contextual_shape_override:  manifest の contextual_vectors.shape を上書き
         vocab_override:        vocab.json の内容を上書き
         pos_n_override:        vocab_pos.npy の長さを上書き
         dtype_override:        manifest の dtype を上書き
@@ -75,10 +75,10 @@ def _build_mock_assets(
     meta_dir.mkdir()
 
     static_vecs = rng.standard_normal((n, static_dim)).astype(np.float32)
-    sbert_vecs  = rng.standard_normal((n, sbert_dim)).astype(np.float32)
+    contextual_vecs  = rng.standard_normal((n, contextual_dim)).astype(np.float32)
 
     np.save(emb_dir / "static_vectors.npy", static_vecs)
-    np.save(emb_dir / "sbert_vectors.npy",  sbert_vecs)
+    np.save(emb_dir / "contextual_vectors.npy",  contextual_vecs)
 
     vocab = vocab_override if vocab_override is not None else {
         f"word{i}": i for i in range(n)
@@ -91,12 +91,12 @@ def _build_mock_assets(
     np.save(meta_dir / "vocab_pos.npy", pos)
 
     static_shape = list(static_shape_override) if static_shape_override else [n, static_dim]
-    sbert_shape  = list(sbert_shape_override)  if sbert_shape_override  else [n, sbert_dim]
+    contextual_shape  = list(contextual_shape_override)  if contextual_shape_override  else [n, contextual_dim]
     dtype        = dtype_override if dtype_override else "float32"
 
     manifest = {
         "static_vectors": {"shape": static_shape, "dtype": dtype},
-        "sbert_vectors":  {"shape": sbert_shape,  "dtype": dtype},
+        "contextual_vectors":  {"shape": contextual_shape,  "dtype": dtype},
     }
     with open(tmpdir / "manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f)
@@ -112,7 +112,7 @@ class TestLoadAllSuccess(unittest.TestCase):
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory()
         self.tmpdir = Path(self._tmpdir.name)
-        _build_mock_assets(self.tmpdir, n=5, static_dim=4, sbert_dim=8)
+        _build_mock_assets(self.tmpdir, n=5, static_dim=4, contextual_dim=8)
         self.loader = EmbeddingLoader(self.tmpdir)
         self.loader.load_all()
 
@@ -123,9 +123,9 @@ class TestLoadAllSuccess(unittest.TestCase):
         """static_vectors の shape が (N, D) であることを確認。"""
         self.assertEqual(self.loader.static_vectors.shape, (5, 4))
 
-    def test_sbert_vectors_shape(self) -> None:
-        """sbert_vectors の shape が (N, D) であることを確認。"""
-        self.assertEqual(self.loader.sbert_vectors.shape, (5, 8))
+    def test_contextual_vectors_shape(self) -> None:
+        """contextual_vectors の shape が (N, D) であることを確認。"""
+        self.assertEqual(self.loader.contextual_vectors.shape, (5, 8))
 
     def test_vocab_is_dict(self) -> None:
         """vocab が dict 型であることを確認。"""
@@ -175,11 +175,11 @@ class TestManifestViolation(unittest.TestCase):
         with self.assertRaises(ManifestViolationError):
             loader.load_all()
 
-    def test_shape_mismatch_sbert(self) -> None:
-        """manifest の sbert shape が実データと異なる場合に ManifestViolationError が発生する。"""
+    def test_shape_mismatch_contextual(self) -> None:
+        """manifest の contextual shape が実データと異なる場合に ManifestViolationError が発生する。"""
         _build_mock_assets(
             self.tmpdir, n=5,
-            sbert_shape_override=(5, 999),  # 実際は (5, 8)
+            contextual_shape_override=(5, 999),  # 実際は (5, 8)
         )
         loader = EmbeddingLoader(self.tmpdir)
         with self.assertRaises(ManifestViolationError):
@@ -242,10 +242,10 @@ class TestIndexAlignment(unittest.TestCase):
 class TestFileNotFound(unittest.TestCase):
     """FileNotFoundError のテスト。"""
 
-    def test_nonexistent_asset_root(self) -> None:
+    def test_nonexistent_data_root(self) -> None:
         """存在しないディレクトリを指定した場合に FileNotFoundError が発生する。"""
         with self.assertRaises(FileNotFoundError):
-            EmbeddingLoader(Path("/nonexistent/path/assets"))
+            EmbeddingLoader(Path("/nonexistent/path/data"))
 
     def test_missing_manifest(self) -> None:
         """manifest.json が欠落している場合に FileNotFoundError が発生する。"""
