@@ -170,11 +170,9 @@ pip install -r requirements.txt
 python -c "import nltk; nltk.download('brown')"
 python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
 
-# 5. Word2Vec モデルを models/ に手動配置
-#    → models/w2v_brown10_simplewiki10_sg_300d_w5.model
-
-# 6. 資産ファイルの生成（初回のみ。HuggingFace へのアクセスが必要）
+# 5. 資産ファイルの生成（初回のみ。HuggingFace へのアクセスが必要）
 python -m data_pipeline.vocab.merge                    # → data/metadata/vocab.json
+python -m data_pipeline.train.train_w2v               # → models/w2v_brown10_simplewiki10_sg_300d_w5.model
 python -m data_pipeline.export.static_vectors         # → data/embeddings/static_vectors.npy
 python -m data_pipeline.export.contextual_vectors     # → data/embeddings/contextual_vectors.npy
 python -m data_pipeline.export.vocab_pos              # → data/metadata/vocab_pos.npy
@@ -243,10 +241,12 @@ Explainable-Semantic-Space-Explorer/
 │   │   ├── gen_brown.py
 │   │   ├── gen_wiki.py
 │   │   └── merge.py
-│   └── export/
-│       ├── static_vectors.py
-│       ├── contextual_vectors.py
-│       └── vocab_pos.py
+│   ├── export/
+│   │   ├── static_vectors.py
+│   │   ├── contextual_vectors.py
+│   │   └── vocab_pos.py
+│   └── train/
+│       └── train_w2v.py           # Word2Vec モデル学習
 │
 ├── models/                        # Word2Vec モデル配置場所（Git管理外）
 │

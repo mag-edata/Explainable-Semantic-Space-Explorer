@@ -178,11 +178,14 @@ Explainable-Semantic-Space-Explorer/
 │   │   ├── gen_brown.py
 │   │   ├── gen_wiki.py
 │   │   └── merge.py
-│   └── export/
+│   ├── export/
+│   │   ├── __init__.py
+│   │   ├── static_vectors.py
+│   │   ├── contextual_vectors.py
+│   │   └── vocab_pos.py
+│   └── train/
 │       ├── __init__.py
-│       ├── static_vectors.py
-│       ├── contextual_vectors.py
-│       └── vocab_pos.py
+│       └── train_w2v.py
 ├── models/                      ✅ 配置先のみ作成（モデル本体は Git 管理外）
 │   └── .gitkeep
 ├── DOCS/
