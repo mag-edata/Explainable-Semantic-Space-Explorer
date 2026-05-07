@@ -12,7 +12,8 @@ venv/
 .venv/
 env/
 __pycache__/
-*.py[cod]        # .pyc / .pyo / .pyd をまとめて除外
+# .pyc / .pyo / .pyd をまとめて除外
+*.py[cod]        
 *.pyd
 .Python
 build/
