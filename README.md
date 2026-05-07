@@ -32,7 +32,7 @@ NLP の実務では単語埋め込みが広く使われているが、その挙�
 
 ## 解決策
 
-このツールは、埋め込みを**「理解するための対象」**として扱う。
+このツールは、埋め込みを**理解するための対象**として扱う。
 
 1. **類似度の内訳を表示**  
    コサイン類似度を `dot(a,b) / (‖a‖·‖b‖)` の形式で分解し、内積・ノルムを個別に確認できる
@@ -211,7 +211,7 @@ Explainable-Semantic-Space-Explorer/
 │   │   └── vocab_pos.npy          # 品詞ラベル配列 shape (83823,)
 │   └── manifest.json              # shape / dtype 整合チェック用
 │
-├── core/                          # 純粋ロジック層（外部 API 禁止）
+├── core/                          # 純粋ロジック層
 │   ├── embedding_loader.py        # ベクトル読み込み・整合チェック
 │   ├── similarity_engine.py       # 類似度検索・比較
 │   ├── distance_metrics.py        # コサイン類似度の自前実装
