@@ -1,12 +1,18 @@
 {
   "static_vectors": {
-    "shape": [83823, 300],
+    "shape": [
+      83823,
+      300
+    ],
     "dtype": "float32",
     "source": "Word2Vec trained on Brown + SimpleWiki",
     "training_date": "YYYY-MM-DD"
   },
   "contextual_vectors": {
-    "shape": [83823, 384],
+    "shape": [
+      83823,
+      384
+    ],
     "dtype": "float32",
     "model": "all-MiniLM-L6-v2",
     "encoding_type": "single-word embedding"
