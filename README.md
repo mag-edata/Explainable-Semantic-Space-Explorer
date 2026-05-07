@@ -1,53 +1,59 @@
 # Explainable Semantic Space Explorer
 
+> Explainability-focused NLP analysis tool for analyzing why embeddings are semantically close.
+
 単語埋め込み空間を可視化・分析し、**「なぜその単語が近いのか」を数値で説明する**ツール。
 
 - 静的埋め込み（Word2Vec）と文脈埋め込み（SBERT）の差異を定量的に比較
-- コサイン類似度の計算を内積・ノルム・式の形式で分解し、ブラックボックスにしない
+- コサイン類似度を内積・ノルム・式の形式で分解し、ブラックボックスにしない
 - 外部 API 不使用・ローカル CPU のみで完全動作
 
 ---
 
-## 課題
+## デモ
 
-NLP の実務では単語埋め込みが広く使われているが、その挙動は説明しにくい。
+> スクリーンショット・GIF は追加予定
 
-### 典型的なブラックボックス問題
+クエリ語 `"bank"` で静的・文脈埋め込みを比較した例:
 
-- **結果は出るが理由がわからない**  
-  「"king" の近傍に "queen" が出る」は知っていても、なぜ近いのかを数値で説明できない
+**Word2Vec（静的）の近傍**
 
-- **モデル間の差異が把握しにくい**  
-  Word2Vec（静的）と SBERT（文脈）は同じ単語を異なる位置に置く。その差を定量的に比較する手段が乏しい
+```
+river, shore, creek, lake, ...
+```
 
-- **類似度スコアの意味が不明瞭**  
-  0.82 は「高い」のか「普通」なのか、語彙全体の分布を見なければ判断できない
+→ 文脈なしのため、地理的な意味に引っ張られる
 
-その結果：
-- モデル選定の根拠が感覚的になる
-- 埋め込みの挙動をチームで共有しにくい
-- デバッグ・改善の試行錯誤にコストがかかる
+**SBERT（文脈）の近傍**
+
+```
+financial, credit, loan, fund, ...
+```
+
+→ コーパス中の文脈から、金融的な意味が優勢になる
+
+同じ `"bank"` でも埋め込みモデルによって**意味空間の位置が変わる**ことが数値で確認できる。
 
 ---
 
-## 解決策
+## 主な特徴
 
-このツールは、埋め込みを**理解するための対象**として扱う。
+- **類似度の内訳表示**: コサイン類似度を `dot(a,b) / (‖a‖·‖b‖)` の形式で分解し、内積・ノルムを個別に確認
+- **Z-score による相対評価**: 語彙全体の分布における外れ値度を数値化し、「0.82 は本当に高いか」を判断可能
+- **静的 vs 文脈の並列比較**: Word2Vec と SBERT の近傍語・ランク差・共通語・固有語を対称的に比較
+- **2D 投影 + クラスタリング**: PCA / UMAP で埋め込み空間を俯瞰し、KMeans で意味的グループを確認
+- **品詞フィルタリング**: 名詞・動詞・形容詞などで近傍語を絞り込み、統語的バイアスを分離
 
-1. **類似度の内訳を表示**  
-   コサイン類似度を `dot(a,b) / (‖a‖·‖b‖)` の形式で分解し、内積・ノルムを個別に確認できる
+---
 
-2. **Z-score で相対的な位置を把握**  
-   語彙全体の分布における外れ値度を数値化し、0.82 が本当に高いかを判断できる
+## LLM / RAG システムとの関連
 
-3. **静的 vs 文脈埋め込みを並列比較**  
-   Word2Vec と SBERT の近傍語・ランク差・共通語・固有語を対称的に比較できる
+embedding は RAG・意味検索・推薦の基盤技術として広く使われているが、その挙動はブラックボックス化しやすい。本ツールが対象とする問題は以下に直結する:
 
-4. **2D 投影 + クラスタリングで構造を可視化**  
-   PCA / UMAP で埋め込み空間を俯瞰し、KMeans で語彙の意味的グループを確認できる
-
-5. **品詞フィルタリングで絞り込み**  
-   名詞・動詞・形容詞などで近傍語を絞り込み、統語的なバイアスを分離できる
+- **RAG の retrieval 品質評価**: なぜその文書がヒットしたかを説明できなければ、retrieval 失敗の原因を特定できない
+- **意味検索のデバッグ**: コサイン類似度の内訳を見ることで、誤ヒットの原因特定が可能
+- **モデル選定の根拠化**: 静的 vs 文脈埋め込みの差を定量比較することで、用途ごとの選定を説明可能にする
+- **embedding ドリフト分析**: 同一語彙の静的・文脈間の距離分布変化を観察できる
 
 ---
 
@@ -66,43 +72,18 @@ data/ ──► core/ ──► transforms/ ──► ui/app.py
 | `transforms/` | PCA・UMAP・KMeans などベクトル変換 |
 | `ui/` | Streamlit で表示するだけ。ロジック記述禁止 |
 
-例：
-
-入力（クエリ語）
-- "bank"
-
-出力（静的 vs 文脈 比較）
-
-**Word2Vec（静的）の近傍**
-- river, shore, creek, lake ...
-  → 文脈なしのため、地理的な意味に引っ張られる
-
-**SBERT（文脈）の近傍**
-- financial, credit, loan, fund ...
-  → コーパス中の文脈から、金融的な意味が優勢になる
-
-→ 同じ "bank" でも埋め込みモデルによって**意味空間の位置が変わる**ことが数値で確認できる
-
 ---
 
 ## 設計方針
 
-### なぜコサイン類似度を自前実装するか
+**なぜコサイン類似度を自前実装するか**  
+scipy / sklearn の `cosine_similarity` を使えば 1 行で済む。あえて自前実装することで、計算過程（内積・ノルム・除算）を UI 上に明示し、「類似度とは何か」を説明可能にする。
 
-scipy / sklearn の `cosine_similarity` を使えば 1 行で済む。
-あえて自前実装することで、計算過程（内積・ノルム・除算）を UI 上に明示し、
-「類似度とは何か」を説明可能にする。
+**なぜ静的と文脈の両方を扱うか**  
+Word2Vec は単語に固定ベクトルを割り当てる（多義語を区別しない）。SBERT は文脈を考慮して動的にベクトルを生成する。この差異を並列表示することで、「どちらが優れているか」ではなく「何が違うのか」を理解できる。
 
-### なぜ静的と文脈の両方を扱うか
-
-Word2Vec は単語に固定ベクトルを割り当てる（多義語を区別しない）。
-SBERT は文脈を考慮して動的にベクトルを生成する。
-この差異を並列表示することで、「どちらが優れているか」ではなく「何が違うのか」を理解できる。
-
-### なぜ外部 API を使わないか
-
-再現性と透明性を最優先にするため、外部サービスへの依存を排除した。
-ローカル CPU 環境で完全に動作し、コードを読めば挙動がすべて追える。
+**なぜ外部 API を使わないか**  
+再現性と透明性を最優先にするため、外部サービスへの依存を排除した。ローカル CPU 環境で完全に動作し、コードを読めば挙動がすべて追える。
 
 ---
 
@@ -129,43 +110,38 @@ SBERT は文脈を考慮して動的にベクトルを生成する。
 
 ---
 
-## Demo
+## Quick Start
 
-> *(Pending: `data/` の埋め込みファイルが大容量のため Streamlit Cloud へのデプロイを検討中)*
+```bash
+git clone https://github.com/mag-edata/Explainable-Semantic-Space-Explorer.git
+cd Explainable-Semantic-Space-Explorer
+python3.12 -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python -m streamlit run ui/app.py
+```
 
-ローカルでの動作確認は「セットアップ」を参照。
+> **Note:** 初回実行前に `data/` 配下の埋め込みファイルを生成する必要があります。詳細は下記 [Full Data Pipeline Setup](#full-data-pipeline-setup) を参照。
 
 ---
 
-## セットアップ
+## Full Data Pipeline Setup
+
+<details>
+<summary>初回セットアップ手順（クリックで展開）</summary>
 
 ```bash
-# 1. リポジトリのクローン
-git clone https://github.com/mag-edata/Explainable-Semantic-Space-Explorer.git
-cd Explainable-Semantic-Space-Explorer
-
-# 2. 仮想環境の作成・有効化
-python3 -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-
-# 3. 依存パッケージのインストール
-pip install -r requirements.txt
-
-# 4. NLTK データのダウンロード
+# NLTK データのダウンロード
 python -c "import nltk; nltk.download('brown')"
 python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
 
-# 5. 資産ファイルの生成（初回のみ。HuggingFace へのアクセスが必要）
+# 資産ファイルの生成（HuggingFace へのアクセスが必要）
 python -m data_pipeline.vocab.merge                    # → data/metadata/vocab.json
 python -m data_pipeline.train.train_w2v               # → models/w2v_brown10_simplewiki10_sg_300d_w5.model
 python -m data_pipeline.export.static_vectors         # → data/embeddings/static_vectors.npy
 python -m data_pipeline.export.contextual_vectors     # → data/embeddings/contextual_vectors.npy
 python -m data_pipeline.export.vocab_pos              # → data/metadata/vocab_pos.npy
 python -m data_pipeline.manifest                      # → data/manifest.json
-
-# 7. アプリ起動
-venv/bin/python3 -m streamlit run ui/app.py
-# → http://localhost:8501 がブラウザで開く
 ```
 
 ### 動作確認済み環境
@@ -179,6 +155,8 @@ venv/bin/python3 -m streamlit run ui/app.py
 | streamlit | 1.54.0 |
 | altair | 6.0.0 |
 
+</details>
+
 ---
 
 ## プロジェクト構造
@@ -188,7 +166,7 @@ Explainable-Semantic-Space-Explorer/
 ├── data/                        # 埋め込みベクトル・メタデータ（Git管理外）
 │   ├── embeddings/
 │   │   ├── static_vectors.npy     # Word2Vec  shape (83823, 300)
-│   │   └── contextual_vectors.npy      # SBERT     shape (83823, 384)
+│   │   └── contextual_vectors.npy # SBERT     shape (83823, 384)
 │   ├── metadata/
 │   │   ├── vocab.json             # 語彙リスト
 │   │   └── vocab_pos.npy          # 品詞ラベル配列 shape (83823,)
@@ -209,38 +187,12 @@ Explainable-Semantic-Space-Explorer/
 │   └── app.py                     # Streamlit UI（4タブ）
 │
 ├── tests/                         # 単体テスト群（192テスト全通過）
-│   ├── test_distance_metrics.py
-│   ├── test_similarity_engine.py
-│   ├── test_embedding_loader.py
-│   ├── test_pos_filter.py
-│   ├── test_analyzer.py
-│   ├── test_clustering.py
-│   └── test_projection.py
 │
 ├── data_pipeline/                 # 資産生成パイプライン（セットアップ時のみ実行）
-│   ├── manifest.py
-│   ├── _common/
-│   │   ├── token_definition.py
-│   │   └── tokenizer.py
-│   ├── vocab/
-│   │   ├── gen_brown.py
-│   │   ├── gen_wiki.py
-│   │   └── merge.py
-│   ├── export/
-│   │   ├── static_vectors.py
-│   │   ├── contextual_vectors.py
-│   │   └── vocab_pos.py
-│   └── train/
-│       └── train_w2v.py           # Word2Vec モデル学習
 │
 ├── models/                        # Word2Vec モデル配置場所（Git管理外）
 │
 ├── DOCS/                          # 設計ドキュメント
-│   ├── 要件定義書.md
-│   ├── 基本設計書.md
-│   ├── 詳細設計書.md
-│   ├── テスト設計書.md
-│   └── テスト項目書.md
 │
 ├── requirements.txt
 └── README.md
@@ -248,7 +200,16 @@ Explainable-Semantic-Space-Explorer/
 
 ---
 
-## 既知の課題
+## Testing
+
+- 192 unit tests passing
+- Core logic and transform layers fully covered
+- Deterministic local execution（乱数 seed 固定）
+
+---
+
+<details>
+<summary>既知の課題</summary>
 
 ### [UI] 投影・クラスタタブ: クエリ語マーカーの凡例と図の不一致
 
@@ -261,12 +222,14 @@ Explainable-Semantic-Space-Explorer/
   - `mark_rule` / `mark_point` を組み合わせてクエリ点を別途オーバーレイする
   - `shape` を廃止し `size` + `color` でクエリを目立たせる
 
+</details>
+
 ---
 
 ## 背景
 
-大学で英語学・英語コーパス・統計的著者推定を学んだことをきっかけに、Python によるデータ分析と AI に興味を持った。
+単語の意味関係を統計的に扱う研究をきっかけに、Python による NLP に関心を持った。
 
-単語の「意味の近さ」を統計的に扱う研究に触れる中で、埋め込みモデルが**なぜそう判断するのか**を説明する手段がないことに課題を感じた。
+近年の LLM システムでは embedding が RAG・検索・推薦の基盤技術として使われているが、埋め込み空間の挙動はブラックボックス化しやすい。**なぜその単語が近いのか・モデルごとに何が違うのか**を説明することが難しく、モデル選定・retrieval 品質評価・failure analysis を困難にする。
 
-このプロジェクトは、その課題を出発点として設計した。ツールとして「動く」だけでなく、**埋め込み空間の挙動を理解・説明できること**を最優先に置いている。
+このプロジェクトでは、埋め込みを「利用する対象」ではなく「分析・説明する対象」として扱い、Explainability を組み込んだ NLP システムとして設計した。
