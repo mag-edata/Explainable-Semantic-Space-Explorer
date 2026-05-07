@@ -110,7 +110,7 @@ def export_vocab_pos() -> None:
         各要素はcoarse-grained POSラベル。
         インデックスは vocab.json と完全一致する。
     """
-    ensure_nltk_resource("taggers/averaged_perceptron_tagger", "averaged_perceptron_tagger")
+    ensure_nltk_resource("taggers/averaged_perceptron_tagger_eng", "averaged_perceptron_tagger_eng")
 
     vocab = load_vocab()
 

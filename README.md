@@ -138,7 +138,7 @@ python -m streamlit run ui/app.py
 
 ```bash
 # NLTK データのダウンロード（data/nltk_data/ に保存）
-python -c "import nltk; nltk.download('brown', download_dir='data/nltk_data'); nltk.download('averaged_perceptron_tagger', download_dir='data/nltk_data')"
+python -c "import nltk; nltk.download('brown', download_dir='data/nltk_data'); nltk.download('averaged_perceptron_tagger_eng', download_dir='data/nltk_data')"
 
 # 資産ファイルの生成（HuggingFace へのアクセスが必要）
 python -m data_pipeline.vocab.merge                    # → data/metadata/vocab.json
