@@ -31,6 +31,7 @@ pip-wheel-metadata/
 data/embeddings/*.npy
 data/metadata/vocab_pos.npy
 data/metadata/vocab.json
+data/nltk_data/
 
 
 # -----------------------------------------------------------------------------

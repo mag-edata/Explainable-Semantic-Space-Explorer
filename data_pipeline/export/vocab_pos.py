@@ -20,9 +20,10 @@ import json
 from pathlib import Path
 from typing import List
 
-import nltk
 import numpy as np
 from nltk import pos_tag
+
+from data_pipeline._common.nltk_setup import ensure_nltk_resource
 
 # ---------- 入出力パス（このスクリプト固有）----------
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
@@ -109,11 +110,7 @@ def export_vocab_pos() -> None:
         各要素はcoarse-grained POSラベル。
         インデックスは vocab.json と完全一致する。
     """
-    # averaged_perceptron_tagger 未取得の場合はダウンロード
-    try:
-        nltk.data.find("taggers/averaged_perceptron_tagger")
-    except LookupError:
-        nltk.download("averaged_perceptron_tagger")
+    ensure_nltk_resource("taggers/averaged_perceptron_tagger", "averaged_perceptron_tagger")
 
     vocab = load_vocab()
 

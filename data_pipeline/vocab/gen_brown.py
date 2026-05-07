@@ -13,6 +13,7 @@ from collections import Counter
 
 from nltk.corpus import brown
 
+from data_pipeline._common.nltk_setup import ensure_nltk_resource
 from data_pipeline._common.tokenizer import normalize_tokens
 
 
@@ -31,13 +32,8 @@ def gen_brown(min_freq: int = 10) -> set[str]:
         出現回数条件を満たした単語のset。
     """
     # Brownコーパスの全単語を取得
-    try:
-        words_raw = brown.words()
-    except LookupError as e:
-        raise RuntimeError(
-            "NLTK-Brown-corpus not found. "
-            "Run `nltk.download('brown')` before executing this module."
-        ) from e
+    ensure_nltk_resource("corpora/brown", "brown")
+    words_raw = brown.words()
 
     # tokenizerを適用
     words = normalize_tokens(words_raw)

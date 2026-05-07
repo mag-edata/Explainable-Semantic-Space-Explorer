@@ -23,6 +23,7 @@ from datasets import load_dataset
 from gensim.models import Word2Vec
 from nltk.corpus import brown
 
+from data_pipeline._common.nltk_setup import ensure_nltk_resource
 from data_pipeline._common.tokenizer import normalize_tokens, tokenize_text
 from data_pipeline.vocab.merge import merge
 
@@ -46,13 +47,8 @@ def load_brown_sentences(vocab: set) -> List[List[str]]:
     List[List[str]]
         Word2Vec学習に用いる文単位トークン列のリスト。
     """
-    try:
-        sents = brown.sents()
-    except LookupError as e:
-        raise RuntimeError(
-            "NLTK Brown corpus not found. "
-            "Run `nltk.download('brown')` beforehand."
-        ) from e
+    ensure_nltk_resource("corpora/brown", "brown")
+    sents = brown.sents()
 
     sentences: List[List[str]] = []
 

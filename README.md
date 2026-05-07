@@ -131,9 +131,8 @@ python -m streamlit run ui/app.py
 <summary>初回セットアップ手順（クリックで展開）</summary>
 
 ```bash
-# NLTK データのダウンロード
-python -c "import nltk; nltk.download('brown')"
-python -c "import nltk; nltk.download('averaged_perceptron_tagger')"
+# NLTK データのダウンロード（data/nltk_data/ に保存）
+python -c "import nltk; nltk.download('brown', download_dir='data/nltk_data'); nltk.download('averaged_perceptron_tagger', download_dir='data/nltk_data')"
 
 # 資産ファイルの生成（HuggingFace へのアクセスが必要）
 python -m data_pipeline.vocab.merge                    # → data/metadata/vocab.json
@@ -170,6 +169,7 @@ Explainable-Semantic-Space-Explorer/
 │   ├── metadata/
 │   │   ├── vocab.json             # 語彙リスト
 │   │   └── vocab_pos.npy          # 品詞ラベル配列 shape (83823,)
+│   ├── nltk_data/                 # NLTK コーパス（Git管理外）
 │   └── manifest.json              # shape / dtype 整合チェック用
 │
 ├── core/                          # 純粋ロジック層
@@ -189,10 +189,25 @@ Explainable-Semantic-Space-Explorer/
 ├── tests/                         # 単体テスト群（192テスト全通過）
 │
 ├── data_pipeline/                 # 資産生成パイプライン（セットアップ時のみ実行）
+│   ├── _common/
+│   │   ├── nltk_setup.py          # NLTK データパス管理・自動ダウンロード
+│   │   ├── token_definition.py    # トークン正規化ルール定義
+│   │   └── tokenizer.py           # 共通トークナイザ
+│   ├── vocab/
+│   │   ├── gen_brown.py           # Brown コーパスから語彙生成
+│   │   ├── gen_wiki.py            # Simple Wikipedia から語彙生成
+│   │   └── merge.py               # 語彙統合・ソート → vocab.json
+│   ├── export/
+│   │   ├── static_vectors.py      # Word2Vec ベクトルを .npy に書き出し
+│   │   ├── contextual_vectors.py  # SBERT ベクトルを .npy に書き出し
+│   │   └── vocab_pos.py           # 品詞ラベル配列を .npy に書き出し
+│   ├── train/
+│   │   └── train_w2v.py           # Word2Vec モデル学習
+│   └── manifest.py                # manifest.json 生成・整合チェック
 │
 ├── models/                        # Word2Vec モデル配置場所（Git管理外）
 │
-├── DOCS/                          # 設計ドキュメント
+├── DOCS/                          # 設計ドキュメント群
 │
 ├── requirements.txt
 └── README.md
