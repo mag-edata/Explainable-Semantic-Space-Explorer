@@ -2,7 +2,7 @@
 vocab_pos.py
 
 本モジュールは、
-merge_vocab.pyにより確定した統合語彙に対し、
+vocab/merge.py により確定した統合語彙に対し、
 品詞(POS:Part-of-Speech)ラベルを付与し、
 語彙配列と完全にインデックス整合した
 coarse-grained POS配列をnumpy形式で保存する。
@@ -62,7 +62,7 @@ def load_vocab() -> List[str]:
     Returns
     -------
     List[str]
-        merge_vocab.pyにより確定したソート済み語彙リスト。
+        vocab/merge.py により確定したソート済み語彙リスト。
     """
     with VOCAB_JSON.open("r", encoding="utf-8") as f:
         data = json.load(f)

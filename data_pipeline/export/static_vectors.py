@@ -2,7 +2,7 @@
 static_vectors.py
 
 本モジュールは、
-merge_vocab.pyにより確定した統合語彙に対し、
+vocab/merge.py により確定した統合語彙に対し、
 学習済みのWord2Vecモデルを用いて、
 静的単語ベクトル行列(STATIC_VECTORS)を生成し、
 numpy形式で保存する前処理関数を提供する。

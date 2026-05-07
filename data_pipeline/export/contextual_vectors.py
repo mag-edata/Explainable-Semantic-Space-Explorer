@@ -2,7 +2,7 @@
 contextual_vectors.py
 
 本モジュールは、
-merge_vocab.pyにより確定した統合語彙に対し、
+vocab/merge.py により確定した統合語彙に対し、
 Sentence-BERT(SBERT)を用いた文脈埋め込みベクトルを生成し、
 CONTEXTUAL_VECTORSとしてnumpy形式で保存する。
 
@@ -38,7 +38,7 @@ def load_vocab() -> List[str]:
     Returns
     -------
     List[str]
-        merge_vocab.pyにより確定したソート済み統合語彙リスト。
+        vocab/merge.py により確定したソート済み統合語彙リスト。
     """
     with VOCAB_JSON.open("r", encoding="utf-8") as f:
         data = json.load(f)

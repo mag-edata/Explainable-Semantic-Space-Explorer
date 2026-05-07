@@ -235,15 +235,18 @@ Explainable-Semantic-Space-Explorer/
 │   └── test_projection.py
 │
 ├── data_pipeline/                 # 資産生成パイプライン（セットアップ時のみ実行）
-│   ├── token_definition.py
-│   ├── tokenizer.py
-│   ├── gen_brown_vocab.py
-│   ├── gen_wiki_vocab.py
-│   ├── merge_vocab.py
-│   ├── export_static_vectors.py
-│   ├── export_contextual_vectors.py
-│   ├── export_vocab_pos.py
-│   └── gen_manifest.py
+│   ├── manifest.py
+│   ├── _common/
+│   │   ├── token_definition.py
+│   │   └── tokenizer.py
+│   ├── vocab/
+│   │   ├── gen_brown.py
+│   │   ├── gen_wiki.py
+│   │   └── merge.py
+│   └── export/
+│       ├── static_vectors.py
+│       ├── contextual_vectors.py
+│       └── vocab_pos.py
 │
 ├── models/                        # Word2Vec モデル配置場所（Git管理外）
 │
