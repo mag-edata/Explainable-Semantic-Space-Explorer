@@ -61,12 +61,11 @@ DOCS/
 ## 絶対制約（違反禁止）
 
 1. 外部 API 禁止（OpenAI 等）
-2. HuggingFace オンラインダウンロード禁止（セットアップ時 data_pipeline/ 実行時のみ許可）
-3. **コサイン類似度は自前実装**（scipy / sklearn の `cosine_similarity` 使用禁止）
-4. ローカル CPU 環境のみで動作保証
-5. 推論時の学習処理禁止
-6. 乱数使用時は seed 固定
-7. manifest.json によるインデックス整合チェック必須
+2. **コサイン類似度は自前実装**（scipy / sklearn の `cosine_similarity` 使用禁止）
+3. ローカル CPU 環境のみで動作保証
+4. 推論時の学習処理禁止
+5. 乱数使用時は seed 固定
+6. manifest.json によるインデックス整合チェック必須
 
 ---
 

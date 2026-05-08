@@ -13,7 +13,7 @@ models/ 配下へ保存する。
 一貫して再利用可能なモデルを事前に確定することである。
 
 セットアップ時の HuggingFace ネットワークアクセスを前提とする
-（CLAUDE.md 制約 #2: 「セットアップ時 data_pipeline/ 実行時のみ許可」に該当）。
+（要件定義書 CONST-02 を参照）。
 """
 
 from pathlib import Path

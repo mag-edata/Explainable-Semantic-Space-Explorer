@@ -17,7 +17,7 @@ CONTEXTUAL_VECTORSとしてnumpy形式で保存する。
 文脈埋め込みパラダイムの代表として静的埋め込み(Word2Vec)と対比する。
 
 セットアップ時の HuggingFace ネットワークアクセスを前提とする
-（CLAUDE.md 制約 #2: 「セットアップ時 data_pipeline/ 実行時のみ許可」に該当）。
+（要件定義書 CONST-02 を参照）。
 """
 
 import json
