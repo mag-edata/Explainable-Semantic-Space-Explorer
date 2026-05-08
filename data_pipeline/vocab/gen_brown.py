@@ -1,6 +1,12 @@
 """
 gen_brown.py
 
+入力:
+    data/nltk_data/corpora/brown  （NLTK Brownコーパス）
+
+出力:
+    set[str]  （ファイル出力なし。merge.py へ渡す中間データ）
+
 本モジュールは、
 NLTKのBrownコーパスを用いて、
 自然言語処理タスク向けの語彙(vocabulary)を構築するための前処理関数を提供する。

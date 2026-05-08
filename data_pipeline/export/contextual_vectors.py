@@ -1,6 +1,12 @@
 """
 contextual_vectors.py
 
+入力:
+    data/metadata/vocab.json
+
+出力:
+    data/embeddings/contextual_vectors.npy  shape=(N, 384)  dtype=float32
+
 本モジュールは、
 vocab/merge.py により確定した統合語彙に対し、
 Sentence-BERT(SBERT)を用いて、

@@ -1,6 +1,13 @@
 """
 merge.py
 
+入力:
+    gen_brown() / gen_wiki() の返り値
+    （間接的に Brownコーパス + Simple Wikipedia を参照）
+
+出力:
+    data/metadata/vocab.json
+
 本モジュールは、
 以下2コーパスの統合語彙をJSON形式で書き出すことで
 最終的に利用する統合語彙(vocabulary)を構築するための前処理関数を提供する。

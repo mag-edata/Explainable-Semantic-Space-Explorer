@@ -1,6 +1,13 @@
 """
 train_w2v.py
 
+入力:
+    data/nltk_data/corpora/brown  （NLTK Brownコーパス）
+    HuggingFace pszemraj/simple_wikipedia  （ネットワークまたはキャッシュ）
+
+出力:
+    models/w2v_brown10_simplewiki10_sg_300d_w5.model
+
 本モジュールは、
 BrownコーパスおよびSimple Wikipediaコーパスから生成した
 統合コーパスを用いてWord2Vecモデルを学習し、

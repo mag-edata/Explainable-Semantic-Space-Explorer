@@ -1,6 +1,12 @@
 """
 vocab_pos.py
 
+入力:
+    data/metadata/vocab.json
+
+出力:
+    data/metadata/vocab_pos.npy  shape=(N,)  dtype=<U_>
+
 本モジュールは、
 vocab/merge.py により確定した統合語彙に対し、
 品詞(POS:Part-of-Speech)ラベルを付与し、

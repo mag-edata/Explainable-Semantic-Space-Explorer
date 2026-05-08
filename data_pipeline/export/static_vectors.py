@@ -1,6 +1,13 @@
 """
 static_vectors.py
 
+入力:
+    data/metadata/vocab.json
+    models/w2v_brown10_simplewiki10_sg_300d_w5.model
+
+出力:
+    data/embeddings/static_vectors.npy  shape=(N, 300)  dtype=float32
+
 本モジュールは、
 vocab/merge.py により確定した統合語彙に対し、
 学習済みのWord2Vecモデルを用いて、

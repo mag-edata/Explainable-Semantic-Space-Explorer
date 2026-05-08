@@ -1,6 +1,12 @@
 """
 gen_wiki.py
 
+入力:
+    HuggingFace pszemraj/simple_wikipedia  （ネットワークまたはキャッシュ）
+
+出力:
+    set[str]  （ファイル出力なし。merge.py へ渡す中間データ）
+
 本モジュールは、
 Hugging Face DatasetsのSimple Wikipediaコーパスを用いて、
 自然言語処理タスク向けの語彙(vocabulary)を構築するための前処理関数を提供する。

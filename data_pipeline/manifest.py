@@ -1,6 +1,13 @@
 """
 manifest.py
 
+入力:
+    data/embeddings/static_vectors.npy
+    data/embeddings/contextual_vectors.npy
+
+出力:
+    data/manifest.json
+
 本モジュールは、
 data/embeddings/static_vectors.npy / contextual_vectors.npy の
 shape および dtype を読み取り、
