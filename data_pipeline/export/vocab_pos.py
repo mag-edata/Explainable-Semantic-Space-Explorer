@@ -70,7 +70,7 @@ def load_vocab() -> List[str]:
 
     if "vocab" not in data:
         raise ValueError(
-            f"{VOCAB_JSON} does not contain required key: 'vocab'"
+            f"{VOCAB_JSON} に必須キー 'vocab' が存在しません"
         )
 
     return data["vocab"]
@@ -124,9 +124,9 @@ def export_vocab_pos() -> None:
     VOCAB_POS.parent.mkdir(parents=True, exist_ok=True)
     np.save(VOCAB_POS, pos_array)
 
-    print("POS export completed.")
-    print(f"Total words: {len(pos_array)}")
-    print(f"Saved to: {VOCAB_POS}")
+    print("品詞ラベル配列の書き出しが完了しました")
+    print(f"- 出力先: {VOCAB_POS}")
+    print(f"- 件数: {len(pos_array)}")
 
 
 if __name__ == "__main__":

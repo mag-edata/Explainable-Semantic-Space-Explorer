@@ -43,7 +43,7 @@ def load_vocab() -> List[str]:
 
     if "vocab" not in data:
         raise ValueError(
-            f"{VOCAB_JSON} does not contain required key: 'vocab'"
+            f"{VOCAB_JSON} に必須キー 'vocab' が存在しません"
         )
 
     return data["vocab"]
@@ -70,8 +70,8 @@ def export_static_vectors() -> None:
 
     if not vectors:
         raise RuntimeError(
-            "No valid word vectors were found. "
-            "Check consistency between vocab and Word2Vec model."
+            "有効な単語ベクトルが見つかりませんでした。"
+            "vocab と Word2Vec モデルの整合性を確認してください。"
         )
 
     # numpy配列へ変換し保存（dtype は EmbeddingLoader の期待値 float32 に合わせる）
@@ -80,8 +80,9 @@ def export_static_vectors() -> None:
     STATIC_VECTORS.parent.mkdir(parents=True, exist_ok=True)
     np.save(STATIC_VECTORS, vectors_array)
 
-    print(f"Exported static word vectors: {len(valid_words)} words")
-    print(f"- vectors : {STATIC_VECTORS}")
+    print("静的単語ベクトル行列の書き出しが完了しました")
+    print(f"- 出力先: {STATIC_VECTORS}")
+    print(f"- 件数: {len(valid_words)}")
 
 
 if __name__ == "__main__":

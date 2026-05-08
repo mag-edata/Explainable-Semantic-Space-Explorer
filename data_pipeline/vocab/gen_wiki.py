@@ -38,9 +38,9 @@ def gen_wiki(min_freq: int = 10) -> set[str]:
         dataset = load_dataset("pszemraj/simple_wikipedia", split="train")
     except Exception as e:
         raise RuntimeError(
-            "Failed to load Simple-Wikipedia-dataset. "
-            "Ensure datasets cache is available or "
-            "run load_dataset once with network access."
+            "Simple-Wikipediaデータセットのロードに失敗しました。"
+            "datasetsキャッシュが利用可能であることを確認するか、"
+            "ネットワークアクセス環境で load_dataset を一度実行してください。"
         ) from e
 
     # 単語の出現回数をカウント
@@ -58,4 +58,5 @@ def gen_wiki(min_freq: int = 10) -> set[str]:
 
 if __name__ == "__main__":
     vocab = gen_wiki()
-    print(f"Wiki vocab size: {len(vocab)}")
+    print("Simple Wikipediaから語彙を生成しました")
+    print(f"- 件数: {len(vocab)}")

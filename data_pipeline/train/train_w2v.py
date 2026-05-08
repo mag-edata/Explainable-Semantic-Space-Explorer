@@ -80,7 +80,7 @@ def load_wiki_sentences(vocab: set) -> List[List[str]]:
         dataset = load_dataset("pszemraj/simple_wikipedia", split="train")
     except Exception as e:
         raise RuntimeError(
-            "Failed to load Simple Wikipedia dataset."
+            "Simple Wikipediaデータセットのロードに失敗しました。"
         ) from e
 
     sentences: List[List[str]] = []
@@ -128,5 +128,6 @@ if __name__ == "__main__":
     W2V_MODEL.parent.mkdir(parents=True, exist_ok=True)
     model.save(str(W2V_MODEL))
 
-    print(f"Word2Vec model saved to: {W2V_MODEL}")
-    print(f"Total sentences: {len(corpus)}")
+    print("Word2Vec モデルの学習が完了しました")
+    print(f"- 出力先: {W2V_MODEL}")
+    print(f"- 学習文数: {len(corpus)}")

@@ -3,8 +3,9 @@ contextual_vectors.py
 
 本モジュールは、
 vocab/merge.py により確定した統合語彙に対し、
-Sentence-BERT(SBERT)を用いた文脈埋め込みベクトルを生成し、
-CONTEXTUAL_VECTORSとしてnumpy形式で保存する。
+Sentence-BERT(SBERT)を用いて、
+文脈埋め込みベクトル行列(CONTEXTUAL_VECTORS)を生成し、
+numpy形式で保存する前処理関数を提供する。
 
 目的は、
 統合語彙に対する高品質な意味表現を事前計算することで、
@@ -44,7 +45,7 @@ def load_vocab() -> List[str]:
         data = json.load(f)
 
     if "vocab" not in data:
-        raise ValueError("Invalid vocab.json format")
+        raise ValueError("vocab.json のフォーマットが不正です")
 
     return data["vocab"]
 
@@ -81,9 +82,10 @@ def export_contextual_vectors() -> None:
     CONTEXTUAL_VECTORS.parent.mkdir(parents=True, exist_ok=True)
     np.save(CONTEXTUAL_VECTORS, vectors)
 
-    print("Contextual vector export completed.")
-    print(f"Total words: {len(vocab)}")
-    print(f"Dim: {vectors.shape[1]}")
+    print("文脈埋め込みベクトル行列の書き出しが完了しました")
+    print(f"- 出力先: {CONTEXTUAL_VECTORS}")
+    print(f"- 件数: {len(vocab)}")
+    print(f"- 次元: {vectors.shape[1]}")
 
 
 if __name__ == "__main__":
