@@ -426,13 +426,8 @@ def main() -> None:
         else:
             target_indices = neighbor_indices
 
-        target_words: list[str] = [
-            list(loader.vocab.keys())[list(loader.vocab.values()).index(i)]
-            for i in target_indices
-        ]
-        # 高速化: 逆引き辞書を作成
         index_to_word: dict[int, str] = {v: k for k, v in loader.vocab.items()}
-        target_words = [index_to_word[i] for i in target_indices]
+        target_words: list[str] = [index_to_word[i] for i in target_indices]
 
         target_vectors: np.ndarray = loader.static_vectors[target_indices]
 
