@@ -151,14 +151,56 @@ python -m data_pipeline.manifest                      # → data/manifest.json
 
 ### 動作確認済み環境
 
-| 項目 | バージョン |
+**ランタイム**
+
+| 項目 | バージョン / 詳細 |
 |---|---|
+| OS | macOS Tahoe 26.3.1 |
 | Python | 3.12 |
-| numpy | 2.4.2 |
-| scikit-learn | 1.8.0 |
-| umap-learn | 0.5.11 |
+| 仮想環境 | venv（標準ライブラリ） |
+
+**コア依存**
+
+| パッケージ | バージョン | 用途 |
+|---|---|---|
+| numpy | 2.4.2 | ベクトル演算 |
+| scipy | 1.17.1 | 数値計算（補助） |
+| scikit-learn | 1.8.0 | KMeans / PCA |
+| umap-learn | 0.5.11 | 非線形次元削減 |
+| numba | 0.64.0 | umap-learn の依存 |
+| pandas | 2.3.3 | データ整形 |
+
+**NLP / 埋め込み**
+
+| パッケージ | バージョン | 用途 |
+|---|---|---|
+| gensim | ≥4.3 | Word2Vec 学習 |
+| sentence-transformers | （最新） | SBERT 推論 |
+| nltk | ≥3.8 | Brown コーパス・品詞タガー |
+| datasets | ≥2.16, <3.0 | Simple Wikipedia 取得 |
+
+**UI / 可視化**
+
+| パッケージ | バージョン |
+|---|---|
 | streamlit | 1.54.0 |
 | altair | 6.0.0 |
+
+**外部資産**
+
+| 項目 | 詳細 |
+|---|---|
+| Word2Vec モデル | 自前学習（Brown + Simple Wikipedia, sg=1, dim=300, win=5, min_count=5） |
+| SBERT モデル | `all-MiniLM-L6-v2`（HuggingFace） |
+| NLTK データ | `brown`, `averaged_perceptron_tagger_eng`（`data/nltk_data/` に配置） |
+
+**テスト**
+
+| 項目 | 詳細 |
+|---|---|
+| フレームワーク | `unittest`（標準ライブラリ） |
+| テスト数 | 192 |
+| 実行方法 | `python -m unittest discover tests` |
 
 </details>
 
