@@ -271,24 +271,6 @@ Explainable-Semantic-Space-Explorer/
 
 ---
 
-<details>
-<summary>既知の課題</summary>
-
-### [UI] 投影・クラスタタブ: クエリ語マーカーの凡例と図の不一致
-
-- **現象**: Altair の `shape` エンコーディングでクエリ語に `"cross"` を指定しているが、凡例の表示と図上のマーカー形状が一致しないことがある
-- **試みた対策**:
-  - `range=["star", "circle"]` → Vega-Lite の無効値のため凡例が消滅
-  - チャートをレイヤー分割（近傍語・クエリ語を別 `alt.Chart`）→ 描画自体が消えた
-- **現在の状態**: `range=["cross", "circle"]` に戻して保留中
-- **候補解決策**:
-  - `mark_rule` / `mark_point` を組み合わせてクエリ点を別途オーバーレイする
-  - `shape` を廃止し `size` + `color` でクエリを目立たせる
-
-</details>
-
----
-
 ## 背景
 
 単語の意味関係を統計的に扱う研究をきっかけに、Python による NLP に関心を持った。
