@@ -17,7 +17,7 @@ def normalize_tokens(tokens: Iterable[str]) -> List[str]:
     """
     既に分割済のトークン列を処理対象とする。
     主に単語単位で提供されるテキストを想定する。
-    (例：NLTK Brown corpus)
+    （例：NLTK Brown corpus）
 
     Parameters
     ----------
@@ -36,7 +36,7 @@ def tokenize_text(text: str, vocab: Optional[set[str]] = None) -> List[str]:
     """
     生テキストを処理対象とする。
     主に文章単位で提供されるテキストを想定する。
-    (例：Hugging Face Datasets Simple Wikipedia)
+    （例：Hugging Face Datasets Simple Wikipedia）
 
     Parameters
     ----------
@@ -49,7 +49,7 @@ def tokenize_text(text: str, vocab: Optional[set[str]] = None) -> List[str]:
     Returns
     -------
     List[str]
-        トークン化・正規化・フィルタリング・(必要に応じて)語彙制約適用後のトークン列
+        トークン化・正規化・フィルタリング・（必要に応じて）語彙制約適用後のトークン列
     """
     text = text.lower()
     candidates = TOKEN_EXTRACT_PATTERN.findall(text)

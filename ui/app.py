@@ -318,7 +318,7 @@ def main() -> None:
         if comparison.rank_diff:
             st.subheader("順位差（共通語）")
             rd_rows = [
-                {"単語": w, "順位差 (静的 − 文脈)": d}
+                {"単語": w, "順位差 （静的 − 文脈）": d}
                 for w, d in sorted(
                     comparison.rank_diff.items(), key=lambda x: abs(x[1]), reverse=True
                 )

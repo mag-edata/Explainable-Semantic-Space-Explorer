@@ -15,7 +15,7 @@ numpy形式で保存する前処理関数を提供する。
 
 目的は、
 統合語彙に対する高品質な意味表現を事前計算することで、
-下流タスク(類似語検索、距離計算等)において
+下流タスク（類似語検索、距離計算等）において
 推論時にモデル呼び出しを行わず、
 高速かつ再現性のあるベクトル演算を可能にすることである。
 
@@ -79,7 +79,7 @@ def export_contextual_vectors() -> None:
         batch_size=256,
         show_progress_bar=True,
         convert_to_numpy=True,
-        normalize_embeddings=True,  # L2正規化(コサイン計算前提)
+        normalize_embeddings=True,  # L2正規化（コサイン計算前提）
     )
 
     # dtype は EmbeddingLoader の期待値 float32 に合わせる

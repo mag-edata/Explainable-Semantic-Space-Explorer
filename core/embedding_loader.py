@@ -215,7 +215,7 @@ class EmbeddingLoader:
         if isinstance(raw, dict) and "vocab" in raw and isinstance(raw["vocab"], list):
             word_list = raw["vocab"]
             self.vocab = {word: idx for idx, word in enumerate(word_list)}
-            logger.debug("vocab.json をリスト形式から辞書形式に変換しました (件数=%d)", len(self.vocab))
+            logger.debug("vocab.json をリスト形式から辞書形式に変換しました（件数=%d）", len(self.vocab))
         else:
             self.vocab = raw
 

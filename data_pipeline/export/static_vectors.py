@@ -43,7 +43,7 @@ def load_vocab() -> List[str]:
     Returns
     -------
     list[str]
-        統合語彙リスト(ソート済み)
+        統合語彙リスト（ソート済み）
     """
     with VOCAB_JSON.open("r", encoding="utf-8") as f:
         data = json.load(f)

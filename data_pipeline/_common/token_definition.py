@@ -12,7 +12,7 @@ token_definition.py
 
 import re
 
-# 英字列抽出パターン(トークン候補生成用)
+# 英字列抽出パターン（トークン候補生成用）
 TOKEN_EXTRACT_PATTERN = re.compile(r"[a-zA-Z]+")
 # 英字のみを構成要素とするトークンへのフィルタリング制約
 TOKEN_CONSTRAINT_PATTERN = re.compile(r"^[a-zA-Z]+$")

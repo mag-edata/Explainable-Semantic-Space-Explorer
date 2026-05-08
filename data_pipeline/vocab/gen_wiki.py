@@ -2,10 +2,10 @@
 gen_wiki.py
 
 入力:
-    HuggingFace pszemraj/simple_wikipedia  （ネットワークまたはキャッシュ）
+    HuggingFace pszemraj/simple_wikipedia（ネットワークまたはキャッシュ）
 
 出力:
-    set[str]  （ファイル出力なし。merge.py へ渡す中間データ）
+    set[str]（ファイル出力なし。merge.py へ渡す中間データ）
 
 本モジュールは、
 Hugging Face DatasetsのSimple Wikipediaコーパスを用いて、

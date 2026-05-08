@@ -2,8 +2,8 @@
 train_w2v.py
 
 入力:
-    data/nltk_data/corpora/brown  （NLTK Brownコーパス）
-    HuggingFace pszemraj/simple_wikipedia  （ネットワークまたはキャッシュ）
+    data/nltk_data/corpora/brown（NLTK Brownコーパス）
+    HuggingFace pszemraj/simple_wikipedia（ネットワークまたはキャッシュ）
 
 出力:
     models/w2v_brown10_simplewiki10_sg_300d_w5.model
@@ -109,7 +109,7 @@ def load_corpus() -> List[List[str]]:
     Returns
     -------
     List[List[str]]
-        統合コーパス(文単位トークン列のリスト)。
+        統合コーパス（文単位トークン列のリスト）。
     """
     vocab = set(merge())
 

@@ -160,7 +160,7 @@ class POSFilter:
         これはモデルの品詞依存性の低さを示す。
 
         計算式:
-            異品詞率 = (query_pos と異なる品詞の件数) / (全件数)
+            異品詞率 =（query_pos と異なる品詞の件数） /（全件数）
 
         Args:
             results:   SearchResult のリスト。

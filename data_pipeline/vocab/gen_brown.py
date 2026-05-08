@@ -2,10 +2,10 @@
 gen_brown.py
 
 入力:
-    data/nltk_data/corpora/brown  （NLTK Brownコーパス）
+    data/nltk_data/corpora/brown（NLTK Brownコーパス）
 
 出力:
-    set[str]  （ファイル出力なし。merge.py へ渡す中間データ）
+    set[str]（ファイル出力なし。merge.py へ渡す中間データ）
 
 本モジュールは、
 NLTKのBrownコーパスを用いて、

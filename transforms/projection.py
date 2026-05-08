@@ -70,7 +70,7 @@ class ProjectionResult:
         explained_variance: 主成分の寄与率リスト（PCA のみ）。
                            [第1主成分の寄与率, 第2主成分の寄与率]（0.0〜1.0）。
                            UMAP の場合は空リスト []。
-        method:            使用した投影手法名 ("pca" または "umap")。
+        method:            使用した投影手法名（"pca" または "umap"）。
         cluster_labels:    クラスタID 配列。shape (N,)。
                            attach_clusters() で付与するまでは None。
         n_samples:         投影した語彙数 N。
@@ -97,7 +97,7 @@ class Projector:
     乱数シードは初期化時に固定し、同一データ・同一シードで完全再現を保証する。
 
     Attributes:
-        _method: 投影手法名 ("pca" または "umap")。
+        _method: 投影手法名（"pca" または "umap"）。
         _seed:   乱数シード。
     """
 
@@ -109,7 +109,7 @@ class Projector:
         """Projector を初期化する。
 
         Args:
-            method: 投影手法 ("pca" または "umap")。デフォルト: "pca"。
+            method: 投影手法（"pca" または "umap"）。デフォルト: "pca"。
             seed:   乱数シード（デフォルト: 42）。再現性のために固定する。
 
         Raises:
