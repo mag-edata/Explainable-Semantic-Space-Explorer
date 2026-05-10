@@ -141,7 +141,7 @@ python -m streamlit run ui/app.py
 python -c "import nltk; nltk.download('brown', download_dir='data/nltk_data'); nltk.download('averaged_perceptron_tagger_eng', download_dir='data/nltk_data')"
 
 # 資産ファイルの生成（HuggingFace へのアクセスが必要）
-python -m data_pipeline.vocab.merge                    # → data/metadata/vocab.json
+python -m data_pipeline.vocab.merge                   # → data/metadata/vocab.json
 python -m data_pipeline.train.train_w2v               # → models/w2v_brown10_simplewiki10_sg_300d_w5.model
 python -m data_pipeline.export.static_vectors         # → data/embeddings/static_vectors.npy
 python -m data_pipeline.export.contextual_vectors     # → data/embeddings/contextual_vectors.npy
