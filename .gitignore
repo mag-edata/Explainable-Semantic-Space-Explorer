@@ -10,6 +10,8 @@
 venv/
 .venv/
 env/
+.env
+.env.*
 __pycache__/
 *.py[cod]        
 .Python
@@ -66,8 +68,8 @@ secrets.yaml
 # .streamlit/config.toml は共有したい場合は除外リストから外すこと。
 # -----------------------------------------------------------------------------
 .streamlit/secrets.toml
+.streamlit/config.toml
 .streamlit/cache/
-__pycache__/
 
 
 # -----------------------------------------------------------------------------
