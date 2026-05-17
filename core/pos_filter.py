@@ -1,19 +1,19 @@
 """
 pos_filter.py
 =============
-品詞（Part-of-Speech）フィルタリングと品詞内統計。
+Part-of-Speech (POS) filtering and per-POS statistics.
 
-SimilarityEngine._assign_pos_ranks の基本機能を拡張し、
-以下の機能を提供する:
+Extends the basic functionality of ``SimilarityEngine._assign_pos_ranks``
+and provides the following features:
 
-- 品詞によるフィルタリング
-- 品詞ごとのグループ化
-- 品詞分布の集計
-- 異品詞率（クエリ単語と異なる品詞の割合）
-- 品詞内での順位付け（独立ユーティリティとして）
+- Filtering by POS
+- Grouping by POS
+- Aggregating the POS distribution
+- Heterogeneity rate (proportion of words with a different POS from the query)
+- POS-internal ranking (as a standalone utility)
 
-SimilarityEngine には依存しない。
-SearchResult dataclass に依存する。
+Does not depend on ``SimilarityEngine``.
+Depends on the ``SearchResult`` dataclass.
 """
 
 from __future__ import annotations
@@ -28,15 +28,15 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# カスタム例外
+# Custom exceptions
 # ---------------------------------------------------------------------------
 
 class POSFilterError(Exception):
-    """POSFilter 固有の例外基底クラス。"""
+    """Base exception class specific to POSFilter."""
 
 
 class UnknownPOSTagError(POSFilterError):
-    """指定した品詞タグが結果に存在しない場合の例外。"""
+    """Raised when the requested POS tag is not present in the results."""
 
 
 # ---------------------------------------------------------------------------
@@ -44,13 +44,13 @@ class UnknownPOSTagError(POSFilterError):
 # ---------------------------------------------------------------------------
 
 class POSFilter:
-    """品詞フィルタリングと品詞内統計のユーティリティクラス。
+    """Utility class for POS filtering and per-POS statistics.
 
-    全メソッドは staticmethod。インスタンス化不要で使用可能。
-    SearchResult のリストを入力として受け取り、
-    品詞に関する分析・フィルタリング結果を返す。
+    All methods are staticmethods; instantiation is not required.
+    Accepts a list of ``SearchResult`` objects and returns POS-related
+    analyses or filtered results.
 
-    使用例::
+    Example usage::
 
         results = engine.search("king", top_k=20)
 
@@ -65,21 +65,21 @@ class POSFilter:
         results: List[SearchResult],
         pos_tag: str,
     ) -> List[SearchResult]:
-        """指定した品詞の SearchResult のみを返す。
+        """Return only the ``SearchResult`` entries with the specified POS.
 
-        全体順位（rank）はフィルタ後も元の値を保持する。
-        品詞内順位（pos_rank）は assign_pos_ranks() で再付番できる。
+        The overall ``rank`` is preserved as-is after filtering.
+        ``pos_rank`` can be re-numbered with ``assign_pos_ranks()``.
 
         Args:
-            results: SearchResult のリスト。
-            pos_tag: フィルタリングする品詞ラベル（例: "NOUN", "VERB"）。
+            results: List of ``SearchResult``.
+            pos_tag: POS label to filter on (for example, ``"NOUN"``, ``"VERB"``).
 
         Returns:
-            List[SearchResult]: 指定品詞のみのリスト（元の順序を保持）。
+            List[SearchResult]: List restricted to the given POS, with order preserved.
 
         Raises:
-            ValueError:       pos_tag が空文字の場合。
-            UnknownPOSTagError: 指定した品詞が results に存在しない場合。
+            ValueError:         If ``pos_tag`` is an empty string.
+            UnknownPOSTagError: If the requested POS is not in ``results``.
         """
         if not pos_tag:
             raise ValueError("pos_tag は空文字にできません")
@@ -103,17 +103,18 @@ class POSFilter:
     def group_by_pos(
         results: List[SearchResult],
     ) -> Dict[str, List[SearchResult]]:
-        """SearchResult を品詞ごとにグループ化する。
+        """Group ``SearchResult`` entries by POS.
 
-        各グループ内の順序は元の results の順序（類似度降順）を保持する。
+        Order within each group preserves the original order of ``results``
+        (descending similarity).
 
         Args:
-            results: SearchResult のリスト。
+            results: List of ``SearchResult``.
 
         Returns:
             Dict[str, List[SearchResult]]:
-                キーが品詞ラベル、値がその品詞の SearchResult リスト。
-                例: {"NOUN": [...], "VERB": [...]}
+                Keys are POS labels, values are the ``SearchResult`` list for that POS.
+                Example: ``{"NOUN": [...], "VERB": [...]}``
         """
         groups: Dict[str, List[SearchResult]] = defaultdict(list)
 
@@ -130,23 +131,24 @@ class POSFilter:
     def pos_distribution(
         results: List[SearchResult],
     ) -> Dict[str, int]:
-        """品詞ごとの出現数を集計する。
+        """Count occurrences per POS.
 
-        Top-K 結果の中に各品詞が何件含まれるかを示す。
-        「どの品詞の単語が意味的に近いか」の分析に使用する。
+        Indicates how many entries of each POS are included in the Top-K
+        results. Useful for analyzing "which POS dominates the semantic
+        neighborhood."
 
         Args:
-            results: SearchResult のリスト。
+            results: List of ``SearchResult``.
 
         Returns:
-            Dict[str, int]: キーが品詞ラベル、値が出現数。
-                            出現数の多い順にソート済み。
+            Dict[str, int]: Keys are POS labels, values are counts.
+                            Sorted by count, descending.
         """
         counter: Dict[str, int] = {}
         for result in results:
             counter[result.pos_tag] = counter.get(result.pos_tag, 0) + 1
 
-        # 出現数の多い順にソート
+        # Sort by count, descending
         return dict(sorted(counter.items(), key=lambda x: x[1], reverse=True))
 
     @staticmethod
@@ -154,25 +156,25 @@ class POSFilter:
         results: List[SearchResult],
         query_pos: str,
     ) -> float:
-        """クエリ単語の品詞と異なる品詞の割合（異品詞率）を返す。
+        """Return the proportion of results whose POS differs from the query's POS.
 
-        異品詞率が高いほど、意味的に近い単語が品詞をまたいで分布している。
-        これはモデルの品詞依存性の低さを示す。
+        A higher value means that semantically close words span multiple
+        POS categories, indicating low POS-dependence of the model.
 
-        計算式:
-            異品詞率 =（query_pos と異なる品詞の件数） /（全件数）
+        Formula:
+            heterogeneity = (count of results whose POS ≠ query_pos) / (total count)
 
         Args:
-            results:   SearchResult のリスト。
-            query_pos: クエリ単語の品詞ラベル。
+            results:   List of ``SearchResult``.
+            query_pos: POS label of the query word.
 
         Returns:
-            float: 異品詞率。範囲: [0.0, 1.0]。
-                   0.0 = 全結果が同じ品詞（完全に品詞依存）
-                   1.0 = 全結果が異なる品詞
+            float: Heterogeneity rate, in [0.0, 1.0].
+                   0.0 = every result has the same POS (fully POS-dependent)
+                   1.0 = every result has a different POS
 
         Raises:
-            ValueError: results が空の場合、または query_pos が空文字の場合。
+            ValueError: If ``results`` is empty, or ``query_pos`` is an empty string.
         """
         if not results:
             raise ValueError("results が空です")
@@ -192,20 +194,20 @@ class POSFilter:
     def assign_pos_ranks(
         results: List[SearchResult],
     ) -> List[SearchResult]:
-        """SearchResult リストに同品詞内順位（pos_rank）を付与する。
+        """Assign within-POS rank (``pos_rank``) to each ``SearchResult``.
 
-        results は類似度降順でソート済みであることを前提とする。
-        同品詞グループ内の登場順がそのまま pos_rank になる。
-        元の results の順序は変えない。
+        Assumes ``results`` is already sorted by descending similarity.
+        Appearance order within each POS group becomes ``pos_rank``.
+        The original order of ``results`` is preserved.
 
-        SimilarityEngine._assign_pos_ranks と同じロジックを
-        独立ユーティリティとして提供する。
+        Provides the same logic as ``SimilarityEngine._assign_pos_ranks``
+        as a standalone utility.
 
         Args:
-            results: SearchResult のリスト（類似度降順）。
+            results: List of ``SearchResult`` (descending by similarity).
 
         Returns:
-            List[SearchResult]: pos_rank が設定されたリスト（元の順序を保持）。
+            List[SearchResult]: The same list with ``pos_rank`` filled in.
         """
         pos_counter: Dict[str, int] = {}
 
@@ -221,17 +223,17 @@ class POSFilter:
         results: List[SearchResult],
         n: int = 3,
     ) -> List[str]:
-        """出現数の多い品詞を上位 n 件返す。
+        """Return the top ``n`` POS labels by frequency.
 
         Args:
-            results: SearchResult のリスト。
-            n:       返す品詞の最大件数（デフォルト 3）。
+            results: List of ``SearchResult``.
+            n:       Maximum number of POS labels to return (default 3).
 
         Returns:
-            List[str]: 出現数の多い順の品詞ラベルリスト（最大 n 件）。
+            List[str]: POS labels sorted by frequency (up to ``n`` entries).
 
         Raises:
-            ValueError: n が 1 未満の場合。
+            ValueError: If ``n`` is less than 1.
         """
         if n < 1:
             raise ValueError(f"n は 1 以上である必要があります。受け取った値: {n}")
