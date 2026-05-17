@@ -156,8 +156,8 @@ This document consolidates the 25 low-priority issues (refactoring / code qualit
 
 ### 7.3 Risk of Updating the Label "192 Tests All Passing"
 
-- **Location:** README.md, CLAUDE.md, detailed-design document.md
-- **Symptom:** The number "192 tests" is hard-coded in multiple places. Three places must be updated when tests are added.
+- **Location:** README.md, DOCS/test_cases.md
+- **Symptom:** The number "192 tests" is hard-coded in multiple places. Every location must be updated when tests are added.
 - **Action:** Loosen the README expression from a "number" to something like "core / transforms layers covered by unit tests", or auto-update the number in CI.
 
 ---
@@ -179,11 +179,11 @@ This document consolidates the 25 low-priority issues (refactoring / code qualit
 - The value range of `vocab_pos` is only the 5 values `["adjective", "adverb", "any", "noun", "verb"]`. `"any"` is a coarse label that includes conjunctions, prepositions, determiners, pronouns, and so on; it has weak meaning as a filter. From the user's perspective, "which POS are included" is opaque.
 - **Action:** Either add help text on the UI saying "any = POS other than the above 4 (conjunctions, prepositions, determiners, etc.)", or prepare a more granular coarse-grained POS (such as `"function"`).
 
-### 8.4 No Search Button (Auto Search)
+### 8.4 Instant-Search UX Cost
 
 - **Location:** `ui/app.py`
-- **Basic Design Document §2.1** states "Button: Execute Search", but the implementation **searches instantly on input**. There is a discrepancy between the design document and the implementation.
-- **Action:** Align with either one. Instant search has good UX, but a 5-10 second computation runs on every keystroke, which may be counterproductive. Debouncing or a button is preferable.
+- **Symptom:** Search runs instantly on every input change. While this delivers a responsive feel, each keystroke triggers a 5-10 second heavy computation (Top-K across 83823 × 300/384), which may be counterproductive while the user is still typing.
+- **Action:** Introduce debouncing, or add an explicit "Run search" button to defer execution until the user finishes typing.
 
 ### 8.5 Data Expansion
 

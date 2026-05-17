@@ -48,7 +48,7 @@ This document consolidates the 5 medium-priority issues. For details and the rat
       sg=1,
   )
   ```
-  - The `seed=` parameter is not specified (gensim's default is `seed=1`, but explicit specification is required by CLAUDE.md "Absolute Constraint 5")
+  - The `seed=` parameter is not specified (gensim's default is `seed=1`, but explicit specification is required by CONST-06 — "fix the seed when using random numbers" — defined in `requirements_definition.md`)
   - With `workers=4`, the **gensim official documentation states "full reproducibility is not guaranteed even when seed is specified"**. To guarantee full reproducibility, `workers=1` is required, along with fixing `PYTHONHASHSEED` as an environment variable.
 - **Impact:** Regenerating `static_vectors.npy` may produce subtly different vectors. The phenomenon of "results change on regeneration" could occur after deployment.
 - **Action:** Specify `seed=42, workers=1` explicitly (trade-off with training time).

@@ -28,17 +28,17 @@
 - Page title: `Explainable Semantic Space Explorer`
 - Subtitle: a one-line summary of the system
 
-**Input Area**
+**Input Area** (placed in the sidebar via `st.sidebar`)
 
-- Label: "Enter a query word"
-- Component: `st.text_input` (placeholder: e.g., bank, king, computer)
-- Top-K slider: `st.slider` (range: 5–30, default: 10)
-- POS filter: `st.selectbox` (All POS / Noun / Verb / Adjective, etc.)
-- Button: "Run search" (`st.button`)
+- Label: "Query word"
+- Component: `st.text_input` (default value: `king`; help text guides the user to enter a vocabulary word)
+- Top-K slider: `st.slider` (range: 1–50, default: 10)
+- POS filter: `st.selectbox` (`ALL` + `unique_pos` loaded from `vocab_pos.npy`: adjective, adverb, any, noun, verb)
+- Search trigger: **instant search on input change** (no explicit button; Streamlit reruns automatically on each interaction)
 
 **Result Display Area**
 
-- Shown after search execution (with loading spinner)
+- Updated automatically on each input change
 - Word2Vec and SBERT results displayed side by side using `st.columns(2)`
 - Per-row items: rank, similar word, similarity score, dot product, norm (cosine similarity breakdown), within-POS rank
 - Distance distribution: histogram via `st.altair_chart`; vocabulary-wide mean, standard deviation, and Z-score presented with `st.metric`
