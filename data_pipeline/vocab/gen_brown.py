@@ -1,18 +1,17 @@
 """
 gen_brown.py
 
-入力:
-    data/nltk_data/corpora/brown（NLTK Brownコーパス）
+Inputs:
+    ``data/nltk_data/corpora/brown`` (the NLTK Brown corpus).
 
-出力:
-    set[str]（ファイル出力なし。merge.py へ渡す中間データ）
+Outputs:
+    ``set[str]`` (no file output; intermediate data passed to ``merge.py``).
 
-本モジュールは、
-NLTKのBrownコーパスを用いて、
-自然言語処理タスク向けの語彙(vocabulary)を構築するための前処理関数を提供する。
+This module provides the preprocessing function for building a vocabulary
+suitable for NLP tasks from the NLTK Brown corpus.
 
-低頻度語を除外することでノイズを抑え、
-単語分散表現、分類モデル、言語モデル等の学習を安定させる設計とする。
+Excluding low-frequency words suppresses noise and stabilizes training
+for word embeddings, classifiers, and language models.
 """
 
 from collections import Counter
@@ -25,32 +24,32 @@ from data_pipeline._common.tokenizer import normalize_tokens
 
 def gen_brown(min_freq: int = 10) -> set[str]:
     """
-    指定出現回数以上の単語のみを集めた語彙集合(vocabulary)を構築する。
+    Build a vocabulary set containing only words above a minimum frequency.
 
     Parameters
     ----------
     min_freq : int, optional
-        語彙に含める最小出現回数。
+        Minimum occurrence count required for inclusion in the vocabulary.
 
     Returns
     -------
     set[str]
-        出現回数条件を満たした単語のset。
+        Set of words that satisfy the frequency condition.
     """
-    # Brownコーパスの全単語を取得
+    # Fetch every word from the Brown corpus
     ensure_nltk_resource("corpora/brown", "brown")
     words_raw = brown.words()
 
-    # tokenizerを適用
+    # Apply the tokenizer
     words = normalize_tokens(words_raw)
 
-    # 単語の出現回数をカウント
+    # Count word occurrences
     counter = Counter(words)
-    # 出現回数がmin_freq以上の単語を返却
+    # Return words occurring at least min_freq times
     return {w for w, f in counter.items() if f >= min_freq}
 
 
 if __name__ == "__main__":
     vocab = gen_brown()
-    print("Brownコーパスから語彙を生成しました")
-    print(f"- 件数: {len(vocab)}")
+    print("Generated vocabulary from the Brown corpus")
+    print(f"- count: {len(vocab)}")

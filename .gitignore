@@ -4,8 +4,9 @@
 
 
 # -----------------------------------------------------------------------------
-# Python 実行環境
-# 仮想環境ディレクトリはサイズが大きく、環境依存のためGit 管理外とする。
+# Python runtime
+# Virtual environment directories are large and environment-dependent,
+# so they are excluded from Git tracking.
 # -----------------------------------------------------------------------------
 venv/
 .venv/
@@ -13,7 +14,7 @@ env/
 .env
 .env.*
 __pycache__/
-*.py[cod]        
+*.py[cod]
 .Python
 build/
 dist/
@@ -23,9 +24,9 @@ pip-wheel-metadata/
 
 
 # -----------------------------------------------------------------------------
-# 大容量データ資産（data/）
-# 埋め込みベクトルは数百 MB に達するため Git 管理外とする。
-# 別途 DVC や LFS での管理を推奨。
+# Large data assets (data/)
+# Embedding vectors can reach several hundred MB, so they are excluded
+# from Git tracking. Manage them via DVC or Git LFS separately.
 # -----------------------------------------------------------------------------
 data/embeddings/*.npy
 data/metadata/vocab_pos.npy
@@ -34,8 +35,9 @@ data/nltk_data/
 
 
 # -----------------------------------------------------------------------------
-# Word2Vec モデルファイル（models/）
-# モデル本体および付随する syn1neg / wv.vectors は数百 MB 規模のためGit 管理外とする。
+# Word2Vec model files (models/)
+# The model itself, along with its companion syn1neg / wv.vectors files,
+# reaches several hundred MB and is excluded from Git tracking.
 # -----------------------------------------------------------------------------
 models/*.model
 models/*.model.syn1neg.npy
@@ -43,14 +45,14 @@ models/*.model.wv.vectors.npy
 
 
 # -----------------------------------------------------------------------------
-# manifest.json は意図的にトラッキングするため、 Git 管理対象とする。
-# → （shape/dtype の仕様書として機能）
+# manifest.json is intentionally tracked and remains under Git control.
+# → (serves as the shape/dtype specification)
 # -----------------------------------------------------------------------------
 
 
 # -----------------------------------------------------------------------------
-# 環境変数・シークレット
-# APIキーや認証情報を誤ってコミットしないための保護。
+# Environment variables / secrets
+# Guards against accidentally committing API keys or credentials.
 # -----------------------------------------------------------------------------
 .env
 .env.*
@@ -60,9 +62,9 @@ secrets.yaml
 
 
 # -----------------------------------------------------------------------------
-# Streamlit キャッシュ・設定（ui/ 実装後に生成される）
-# .streamlit/secrets.toml には認証情報が入ることがあるためGit 管理外とする。
-# .streamlit/config.toml は共有したい場合は除外リストから外すこと。
+# Streamlit cache / settings (generated after ui/ is implemented)
+# Excluded because .streamlit/secrets.toml may contain credentials.
+# Remove .streamlit/config.toml from the exclude list if you want to share it.
 # -----------------------------------------------------------------------------
 .streamlit/secrets.toml
 .streamlit/config.toml
@@ -70,7 +72,7 @@ secrets.yaml
 
 
 # -----------------------------------------------------------------------------
-# テスト・カバレッジ（tests/ 実装後に生成される）
+# Tests / coverage (generated after tests/ is implemented)
 # -----------------------------------------------------------------------------
 .pytest_cache/
 .coverage
@@ -81,21 +83,21 @@ coverage.xml
 
 
 # -----------------------------------------------------------------------------
-# Jupyter Notebook（分析・デバッグ用として将来追加される可能性あり）
+# Jupyter notebooks (may be added later for analysis / debugging)
 # -----------------------------------------------------------------------------
 .ipynb_checkpoints/
 *.ipynb
 
 
 # -----------------------------------------------------------------------------
-# ログファイル（logging モジュールが出力するファイルを想定）
+# Log files (expected to be emitted by the logging module)
 # -----------------------------------------------------------------------------
 *.log
 logs/
 
 
 # -----------------------------------------------------------------------------
-# OS 固有ファイル
+# OS-specific files
 # -----------------------------------------------------------------------------
 # macOS
 .DS_Store
@@ -109,9 +111,9 @@ Desktop.ini
 
 
 # -----------------------------------------------------------------------------
-# エディタ・IDE 設定
-# プロジェクト固有の設定は .vscode/settings.json 等で管理する場合は
-# 該当行をコメントアウトして共有すること。
+# Editor / IDE settings
+# If project-specific settings are managed in .vscode/settings.json or similar,
+# comment out the corresponding line to share them.
 # -----------------------------------------------------------------------------
 .vscode/
 .idea/
@@ -121,24 +123,28 @@ Desktop.ini
 
 
 # -----------------------------------------------------------------------------
-# UMAP / scikit-learn のキャッシュ（transforms/ 実装後に生成される可能性あり）
-# joblib の Memory キャッシュディレクトリ。
+# UMAP / scikit-learn cache (may be generated after transforms/ is implemented)
+# joblib's Memory cache directory.
 # -----------------------------------------------------------------------------
 joblib_cache/
 __joblib_memory__/
 
 
 # -----------------------------------------------------------------------------
-# ドキュメント生成（将来 Sphinx 等を使う場合）
+# Documentation generation (in case Sphinx or similar is adopted in the future)
 # -----------------------------------------------------------------------------
 DOCS/_build/
 DOCS/api/
 
 
-# =============================================================================
-# 除外しないもの（明示）
-# =============================================================================
-# CLAUDE.md          → プロジェクト設定ファイル（コミット対象）
-# requirements.txt   → 依存関係定義（コミット対象）
-# data/manifest.json → shape/dtype の仕様書（コミット対象）
-# README.md          → プロジェクト説明（コミット対象）
+# -----------------------------------------------------------------------------
+# Claude Code
+# -----------------------------------------------------------------------------
+.claude/
+CLAUDE.md
+
+
+# -----------------------------------------------------------------------------
+# Explicitly NOT excluded (tracked on purpose)
+# -----------------------------------------------------------------------------
+# data/manifest.json → shape/dtype specification (tracked)

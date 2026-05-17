@@ -1,20 +1,20 @@
 """
 gen_wiki.py
 
-入力:
-    HuggingFace pszemraj/simple_wikipedia（ネットワークまたはキャッシュ）
+Inputs:
+    HuggingFace ``pszemraj/simple_wikipedia`` (network or cache).
 
-出力:
-    set[str]（ファイル出力なし。merge.py へ渡す中間データ）
+Outputs:
+    ``set[str]`` (no file output; intermediate data passed to ``merge.py``).
 
-本モジュールは、
-Hugging Face DatasetsのSimple Wikipediaコーパスを用いて、
-自然言語処理タスク向けの語彙(vocabulary)を構築するための前処理関数を提供する。
+This module provides the preprocessing function for building a vocabulary
+suitable for NLP tasks from Hugging Face Datasets' Simple Wikipedia
+corpus.
 
-低頻度語を除外することでノイズを抑え、
-単語分散表現、分類モデル、言語モデル等の学習を安定させる設計とする。
+Excluding low-frequency words suppresses noise and stabilizes training
+for word embeddings, classifiers, and language models.
 
-セットアップ時の HuggingFace ネットワークアクセスを前提とする
+Assumes HuggingFace network access is available at setup time.
 """
 
 from collections import Counter
@@ -26,43 +26,43 @@ from data_pipeline._common.tokenizer import tokenize_text
 
 def gen_wiki(min_freq: int = 10) -> set[str]:
     """
-    指定出現回数以上の単語のみを集めた語彙集合(vocabulary)を構築する。
+    Build a vocabulary set containing only words above a minimum frequency.
 
     Parameters
     ----------
     min_freq : int, optional
-        語彙に含める最小出現頻度。
+        Minimum occurrence count required for inclusion in the vocabulary.
 
     Returns
     -------
     set[str]
-        出現回数条件を満たした単語のset。
+        Set of words that satisfy the frequency condition.
     """
-    # Simple Wikipediaコーパスをロード
-    # 初回実行時はネットワークアクセスが必要
+    # Load the Simple Wikipedia corpus.
+    # Network access is required on first execution.
     try:
         dataset = load_dataset("pszemraj/simple_wikipedia", split="train")
     except Exception as e:
         raise RuntimeError(
-            "Simple-Wikipediaデータセットのロードに失敗しました。"
-            "datasetsキャッシュが利用可能であることを確認するか、"
-            "ネットワークアクセス環境で load_dataset を一度実行してください。"
+            "Failed to load the Simple Wikipedia dataset. "
+            "Confirm that the datasets cache is available, "
+            "or run load_dataset once in an environment with network access."
         ) from e
 
-    # 単語の出現回数をカウント
+    # Count word occurrences
     counter: Counter[str] = Counter()
 
-    # 各記事を走査し、tokenizerを適用
+    # Iterate over each article and apply the tokenizer
     for item in dataset:
         text = item.get("text", "")
         tokens = tokenize_text(text)
         counter.update(tokens)
 
-    # 出現回数がmin_freq以上の単語を返却
+    # Return words occurring at least min_freq times
     return {w for w, freq in counter.items() if freq >= min_freq}
 
 
 if __name__ == "__main__":
     vocab = gen_wiki()
-    print("Simple Wikipediaから語彙を生成しました")
-    print(f"- 件数: {len(vocab)}")
+    print("Generated vocabulary from Simple Wikipedia")
+    print(f"- count: {len(vocab)}")

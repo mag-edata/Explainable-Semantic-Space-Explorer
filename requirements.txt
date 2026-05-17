@@ -1,21 +1,21 @@
-# 数値計算
+# Numerical computing
 numpy==2.4.2
 scipy==1.17.1
 
-# 機械学習・次元削減
+# Machine learning / dimensionality reduction
 scikit-learn==1.8.0
 umap-learn==0.5.11
 numba==0.64.0
 
-# NLP・埋め込み
+# NLP / embeddings
 nltk>=3.8
 gensim>=4.3
 sentence-transformers
 datasets>=2.16,<3.0
 
-# UI・可視化
+# UI / visualization
 streamlit==1.54.0
 altair==6.0.0
 
-# データ処理
+# Data processing
 pandas==2.3.3

@@ -1,15 +1,15 @@
 """
 test_similarity_engine.py
 =========================
-SimilarityEngine の単体テスト。
+Unit tests for ``SimilarityEngine``.
 
-テスト対象:
-    - search(): Top-K 類似語検索
-    - compare(): 2エンジン間の比較
-    - get_distance_distribution(): 距離分布の計算
-    - word_to_index(): 語彙インデックスの逆引き
+Targets under test:
+    - ``search()``: Top-K similar-word search
+    - ``compare()``: Comparison between two engines
+    - ``get_distance_distribution()``: Distance distribution computation
+    - ``word_to_index()``: Inverse lookup of vocabulary indices
 
-実行方法:
+How to run:
     venv/bin/python3 -m unittest tests/test_similarity_engine.py -v
 """
 
@@ -35,7 +35,7 @@ from core.similarity_engine import (
 
 
 # ---------------------------------------------------------------------------
-# テスト用フィクスチャ（小規模モックデータ）
+# Test fixtures (small mock data)
 # ---------------------------------------------------------------------------
 
 def _make_engine(
@@ -43,15 +43,15 @@ def _make_engine(
     dim: int = 4,
     seed: int = 42,
 ) -> tuple[SimilarityEngine, dict[str, int], np.ndarray]:
-    """テスト用の小規模 SimilarityEngine を生成する。
+    """Build a small ``SimilarityEngine`` for tests.
 
     Args:
-        n:    語彙数
-        dim:  ベクトル次元数
-        seed: 乱数シード
+        n:    Vocabulary size.
+        dim:  Vector dimensionality.
+        seed: Random seed.
 
     Returns:
-        (engine, vocab, vectors) のタプル
+        Tuple of ``(engine, vocab, vectors)``.
     """
     rng = np.random.default_rng(seed)
     vectors = rng.standard_normal((n, dim)).astype(np.float32)
@@ -69,92 +69,92 @@ def _make_engine(
 
 
 class TestSearch(unittest.TestCase):
-    """SimilarityEngine.search() のテスト。"""
+    """Tests for ``SimilarityEngine.search()``."""
 
     def setUp(self) -> None:
         self.engine, self.vocab, self.vectors = _make_engine(n=6, dim=4)
 
     def test_returns_list_of_search_results(self) -> None:
-        """戻り値が SearchResult のリストであることを確認。"""
+        """The return value is a list of ``SearchResult``."""
         results = self.engine.search("word0", top_k=3)
         self.assertIsInstance(results, list)
         self.assertTrue(all(isinstance(r, SearchResult) for r in results))
 
     def test_top_k_count(self) -> None:
-        """返す件数が top_k と一致することを確認（クエリ自身を除く）。"""
+        """The number of returned items is at most ``top_k`` (query itself excluded)."""
         results = self.engine.search("word0", top_k=3)
         self.assertLessEqual(len(results), 3)
 
     def test_excludes_query_itself(self) -> None:
-        """検索結果にクエリ単語自身が含まれないことを確認。"""
+        """Results do not contain the query word itself."""
         results = self.engine.search("word0", top_k=5)
         words = [r.word for r in results]
         self.assertNotIn("word0", words)
 
     def test_sorted_by_similarity_descending(self) -> None:
-        """類似度の降順で並んでいることを確認。"""
+        """Results are sorted by similarity in descending order."""
         results = self.engine.search("word0", top_k=4)
         sims = [r.similarity for r in results]
         self.assertEqual(sims, sorted(sims, reverse=True))
 
     def test_rank_starts_at_one(self) -> None:
-        """順位が 1 から始まることを確認。"""
+        """Rank values start at 1."""
         results = self.engine.search("word0", top_k=3)
         self.assertEqual(results[0].rank, 1)
 
     def test_result_has_explanation(self) -> None:
-        """SearchResult が explanation フィールドを持つことを確認。"""
+        """``SearchResult`` carries the ``explanation`` field."""
         results = self.engine.search("word0", top_k=1)
         self.assertIn("formula", results[0].explanation)
         self.assertIn("dot_product", results[0].explanation)
 
     def test_pos_filter(self) -> None:
-        """pos_filter 指定時、指定品詞のみ返ることを確認。"""
+        """When ``pos_filter`` is supplied, only that POS is returned."""
         results = self.engine.search("word0", top_k=5, pos_filter="NOUN")
         for r in results:
             self.assertEqual(r.pos_tag, "NOUN")
 
     def test_unknown_word_error(self) -> None:
-        """語彙外の単語を渡した場合に UnknownWordError が発生する。"""
+        """An out-of-vocabulary word raises ``UnknownWordError``."""
         with self.assertRaises(UnknownWordError):
             self.engine.search("nonexistent_word", top_k=3)
 
     def test_invalid_top_k_zero(self) -> None:
-        """top_k=0 を渡した場合に InvalidTopKError が発生する。"""
+        """``top_k=0`` raises ``InvalidTopKError``."""
         with self.assertRaises(InvalidTopKError):
             self.engine.search("word0", top_k=0)
 
     def test_invalid_top_k_negative(self) -> None:
-        """top_k が負の値の場合に InvalidTopKError が発生する。"""
+        """Negative ``top_k`` raises ``InvalidTopKError``."""
         with self.assertRaises(InvalidTopKError):
             self.engine.search("word0", top_k=-1)
 
 
 class TestCompare(unittest.TestCase):
-    """SimilarityEngine.compare() のテスト。"""
+    """Tests for ``SimilarityEngine.compare()``."""
 
     def setUp(self) -> None:
         self.engine_a, _, _ = _make_engine(n=6, dim=4, seed=0)
         self.engine_b, _, _ = _make_engine(n=6, dim=4, seed=1)
 
     def test_returns_comparison_result(self) -> None:
-        """戻り値が ComparisonResult であることを確認。"""
+        """The return value is a ``ComparisonResult``."""
         result = self.engine_a.compare("word0", other=self.engine_b, top_k=3)
         self.assertIsInstance(result, ComparisonResult)
 
     def test_query_word_field(self) -> None:
-        """query_word フィールドが正しいことを確認。"""
+        """The ``query_word`` field is correct."""
         result = self.engine_a.compare("word0", other=self.engine_b, top_k=3)
         self.assertEqual(result.query_word, "word0")
 
     def test_static_and_contextual_results_lengths(self) -> None:
-        """static_results と contextual_results の件数が top_k 以内であることを確認。"""
+        """Both ``static_results`` and ``contextual_results`` are at most ``top_k`` entries long."""
         result = self.engine_a.compare("word0", other=self.engine_b, top_k=3)
         self.assertLessEqual(len(result.static_results), 3)
         self.assertLessEqual(len(result.contextual_results), 3)
 
     def test_common_words_subset(self) -> None:
-        """common_words が static_results と contextual_results の語彙の共通部分であることを確認。"""
+        """``common_words`` equals the intersection of words from both engines."""
         result = self.engine_a.compare("word0", other=self.engine_b, top_k=4)
         static_words = {r.word for r in result.static_results}
         contextual_words  = {r.word for r in result.contextual_results}
@@ -162,73 +162,73 @@ class TestCompare(unittest.TestCase):
         self.assertEqual(set(result.common_words), expected_common)
 
     def test_rank_diff_keys_are_common_words(self) -> None:
-        """rank_diff のキーが共通語であることを確認。"""
+        """``rank_diff`` keys match the set of common words."""
         result = self.engine_a.compare("word0", other=self.engine_b, top_k=4)
         self.assertEqual(set(result.rank_diff.keys()), set(result.common_words))
 
     def test_unknown_word_error(self) -> None:
-        """語彙外の単語を渡した場合に UnknownWordError が発生する。"""
+        """An out-of-vocabulary word raises ``UnknownWordError``."""
         with self.assertRaises(UnknownWordError):
             self.engine_a.compare("no_such_word", other=self.engine_b, top_k=3)
 
 
 class TestGetDistanceDistribution(unittest.TestCase):
-    """SimilarityEngine.get_distance_distribution() のテスト。"""
+    """Tests for ``SimilarityEngine.get_distance_distribution()``."""
 
     def setUp(self) -> None:
         self.engine, _, _ = _make_engine(n=10, dim=8)
 
     def test_returns_dict(self) -> None:
-        """戻り値が dict であることを確認。"""
+        """The return value is a dictionary."""
         result = self.engine.get_distance_distribution("word0")
         self.assertIsInstance(result, dict)
 
     def test_required_keys(self) -> None:
-        """必須キーが全て含まれることを確認。"""
+        """Every required key is present."""
         result = self.engine.get_distance_distribution("word0")
         for key in ("query_word", "mean", "std", "top1_similarity", "z_score", "histogram_data"):
-            self.assertIn(key, result, msg=f"キー '{key}' が存在しません")
+            self.assertIn(key, result, msg=f"key '{key}' is missing")
 
     def test_query_word_field(self) -> None:
-        """query_word フィールドがクエリと一致することを確認。"""
+        """``query_word`` matches the input query."""
         result = self.engine.get_distance_distribution("word0")
         self.assertEqual(result["query_word"], "word0")
 
     def test_top1_ge_mean(self) -> None:
-        """Top-1 類似度 >= 平均類似度 であることを確認。"""
+        """``top1_similarity`` is greater than or equal to the mean similarity."""
         result = self.engine.get_distance_distribution("word0")
         self.assertGreaterEqual(result["top1_similarity"], result["mean"] - 1e-6)
 
     def test_histogram_data_length(self) -> None:
-        """histogram_data の長さが語彙数 - 1 であることを確認（クエリ自身を除く）。"""
+        """``histogram_data`` length is N - 1 (query itself excluded)."""
         n = 10
         result = self.engine.get_distance_distribution("word0")
         self.assertEqual(len(result["histogram_data"]), n - 1)
 
     def test_std_is_nonnegative(self) -> None:
-        """標準偏差が非負であることを確認。"""
+        """Standard deviation is non-negative."""
         result = self.engine.get_distance_distribution("word0")
         self.assertGreaterEqual(result["std"], 0.0)
 
     def test_unknown_word_error(self) -> None:
-        """語彙外の単語を渡した場合に UnknownWordError が発生する。"""
+        """An out-of-vocabulary word raises ``UnknownWordError``."""
         with self.assertRaises(UnknownWordError):
             self.engine.get_distance_distribution("no_such_word")
 
 
 class TestWordToIndex(unittest.TestCase):
-    """SimilarityEngine.word_to_index() のテスト。"""
+    """Tests for ``SimilarityEngine.word_to_index()``."""
 
     def setUp(self) -> None:
         self.engine, self.vocab, _ = _make_engine(n=6, dim=4)
 
     def test_correct_index(self) -> None:
-        """単語に対応するインデックスが正しく返ることを確認。"""
+        """Each word maps to its expected index."""
         for word, expected_idx in self.vocab.items():
             self.assertEqual(self.engine.word_to_index(word), expected_idx)
 
     def test_unknown_word_error(self) -> None:
-        """語彙外の単語を渡した場合に UnknownWordError が発生する。"""
+        """An out-of-vocabulary word raises ``UnknownWordError``."""
         with self.assertRaises(UnknownWordError):
             self.engine.word_to_index("unknown_word_xyz")
 

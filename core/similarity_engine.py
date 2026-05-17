@@ -1,16 +1,16 @@
 """
 similarity_engine.py
 ====================
-単語埋め込み空間における類似度検索エンジン。
+Similarity-search engine over a word embedding space.
 
-単一の埋め込み行列を担当するシングルモデル設計。
-static (Word2Vec) と contextual (SBERT) の比較は、それぞれのエンジンを
-インスタンス化して compare() に渡すことで実現する。
+A single-model design: each instance owns one embedding matrix. The
+static (Word2Vec) vs. contextual (SBERT) comparison is realized by
+instantiating two engines and passing one to ``compare()``.
 
-外部ライブラリによる距離計算は一切使用しない。
-すべての距離計算は DistanceMetrics に委譲する。
+No external library is ever used for distance computation. All distance
+calculations are delegated to ``DistanceMetrics``.
 
-使用例::
+Example usage::
 
     loader = EmbeddingLoader(Path("data"))
     loader.load_all()
@@ -48,42 +48,42 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# カスタム例外
+# Custom exceptions
 # ---------------------------------------------------------------------------
 
 class SimilarityEngineError(Exception):
-    """SimilarityEngine 固有の例外基底クラス。"""
+    """Base exception class specific to SimilarityEngine."""
 
 
 class UnknownWordError(SimilarityEngineError):
-    """語彙に存在しない単語が指定された場合の例外。"""
+    """Raised when a requested word is not found in the vocabulary."""
 
 
 class InvalidTopKError(SimilarityEngineError):
-    """top_k の値が不正な場合の例外。"""
+    """Raised when ``top_k`` is invalid."""
 
 
 # ---------------------------------------------------------------------------
-# データクラス
+# Data classes
 # ---------------------------------------------------------------------------
 
 @dataclass
 class SearchResult:
-    """1件の類似語検索結果。
+    """A single similar-word search result.
 
     Attributes:
-        word:        対象単語
-        index:       語彙インデックス（0 始まり）
-        similarity:  クエリとのコサイン類似度スコア [-1.0, 1.0]
-        rank:        全体順位（1 始まり、類似度降順）
-        pos_tag:     品詞ラベル（例: "NOUN", "VERB"）
-        pos_rank:    同品詞内での順位（1 始まり）
-        explanation: 距離計算の内訳辞書
-            - dot_product (float): 内積
-            - norm_a      (float): クエリベクトルの L2 ノルム
-            - norm_b      (float): 対象ベクトルの L2 ノルム
-            - similarity  (float): コサイン類似度
-            - formula     (str):   計算式の文字列表現
+        word:        The target word
+        index:       Vocabulary index (0-based)
+        similarity:  Cosine similarity with the query, in [-1.0, 1.0]
+        rank:        Overall rank (1-based, descending by similarity)
+        pos_tag:     POS label (for example, "NOUN", "VERB")
+        pos_rank:    Rank within the same POS group (1-based)
+        explanation: Breakdown dictionary of the distance computation
+            - dot_product (float): Dot product
+            - norm_a      (float): L2 norm of the query vector
+            - norm_b      (float): L2 norm of the target vector
+            - similarity  (float): Cosine similarity
+            - formula     (str):   String representation of the formula
     """
 
     word: str
@@ -97,22 +97,24 @@ class SearchResult:
 
 @dataclass
 class ComparisonResult:
-    """2つの SimilarityEngine の Top-K 類似語比較結果。
+    """Top-K similar-word comparison between two SimilarityEngine instances.
 
-    compare(query, other) を呼んだとき、
-    self のエンジン結果が static_results、
-    other のエンジン結果が contextual_results に格納される。
+    When ``compare(query, other)`` is invoked, results from ``self`` are
+    stored in ``static_results`` and results from ``other`` are stored in
+    ``contextual_results``.
 
     Attributes:
-        query_word:          クエリ単語
-        static_results:      self エンジンによる Top-K 検索結果
-        contextual_results:  other エンジンによる Top-K 検索結果
-        common_words:        両エンジンに共通する単語リスト（アルファベット順）
-        static_only:         self エンジンのみに出現する単語リスト（アルファベット順）
-        contextual_only:     other エンジンのみに出現する単語リスト（アルファベット順）
-        rank_diff:           共通語ごとの順位差 {word: static順位 - contextual順位}
-                             正値 = static で低順位（下位）、負値 = contextual で低順位
-        similarity_diff:     共通語ごとの類似度差 {word: static類似度 - contextual類似度}
+        query_word:          The query word
+        static_results:      Top-K results from the ``self`` engine
+        contextual_results:  Top-K results from the ``other`` engine
+        common_words:        Words present in both engines (alphabetical order)
+        static_only:         Words unique to the ``self`` engine (alphabetical order)
+        contextual_only:     Words unique to the ``other`` engine (alphabetical order)
+        rank_diff:           Per-shared-word rank difference
+                             ``{word: static_rank - contextual_rank}``.
+                             Positive → ranked lower in static; negative → lower in contextual.
+        similarity_diff:     Per-shared-word similarity difference
+                             ``{word: static_similarity - contextual_similarity}``
     """
 
     query_word: str
@@ -130,24 +132,25 @@ class ComparisonResult:
 # ---------------------------------------------------------------------------
 
 class SimilarityEngine:
-    """単語埋め込み空間における類似度検索エンジン（単一モデル）。
+    """Similarity-search engine over a word embedding space (single model).
 
-    1インスタンスが1つの埋め込み行列（static または contextual）を担当する。
-    static vs contextual の比較は compare(other=contextual_engine) で実行する。
+    Each instance is responsible for one embedding matrix (static or
+    contextual). Static vs. contextual comparison is performed via
+    ``compare(other=contextual_engine)``.
 
-    EmbeddingLoader には依存しない。
-    vectors / vocab / pos_tags / metrics を直接注入する（依存注入）。
+    Does not depend on ``EmbeddingLoader``. ``vectors`` / ``vocab`` /
+    ``pos_tags`` / ``metrics`` are injected directly (dependency injection).
 
-    外部ライブラリによる距離計算は一切使用しない。
-    すべての距離計算は DistanceMetrics に委譲する。
+    No external library is ever used for distance computation. All
+    distance calculations are delegated to ``DistanceMetrics``.
 
     Attributes:
-        _vectors:       埋め込み行列 shape (N, D)
-        _vocab:         単語 → インデックス辞書 {"word": index}
-        _index_to_word: インデックス → 単語リスト（vocab の逆引き）
-        _pos_tags:      品詞ラベル配列 shape (N,)
-        _metrics:       コサイン類似度計算クラス
-        _n_vocab:       語彙サイズ N
+        _vectors:       Embedding matrix, shape (N, D)
+        _vocab:         Word → index dictionary {"word": index}
+        _index_to_word: Index → word list (the inverse mapping of vocab)
+        _pos_tags:      POS label array, shape (N,)
+        _metrics:       Cosine-similarity computation class
+        _n_vocab:       Vocabulary size N
     """
 
     def __init__(
@@ -157,46 +160,47 @@ class SimilarityEngine:
         pos_tags: np.ndarray,
         metrics: DistanceMetrics,
     ) -> None:
-        """SimilarityEngine を初期化する。
+        """Initialize the SimilarityEngine.
 
-        index_to_word（逆引きリスト）は vocab から自動構築する。
+        ``index_to_word`` (the inverse mapping) is built automatically from
+        ``vocab``.
 
         Args:
-            vectors:   埋め込み行列 shape (N, D)。
-            vocab:     単語 → インデックス辞書 {"word": index}。
-            pos_tags:  品詞ラベル配列 shape (N,)。
-            metrics:   DistanceMetrics インスタンス。
+            vectors:   Embedding matrix, shape (N, D).
+            vocab:     Word → index dictionary {"word": index}.
+            pos_tags:  POS label array, shape (N,).
+            metrics:   ``DistanceMetrics`` instance.
 
         Raises:
-            TypeError:  引数の型が不正な場合。
-            ValueError: vectors と vocab のサイズが一致しない場合。
+            TypeError:  If any argument has the wrong type.
+            ValueError: If the size of ``vectors`` does not match ``vocab``.
         """
         if not isinstance(vectors, np.ndarray):
             raise TypeError(
-                f"vectors は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(vectors)}"
+                f"vectors must be of type np.ndarray. "
+                f"Received type: {type(vectors)}"
             )
         if not isinstance(vocab, dict):
             raise TypeError(
-                f"vocab は dict 型である必要があります。"
-                f"受け取った型: {type(vocab)}"
+                f"vocab must be of type dict. "
+                f"Received type: {type(vocab)}"
             )
         if not isinstance(pos_tags, np.ndarray):
             raise TypeError(
-                f"pos_tags は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(pos_tags)}"
+                f"pos_tags must be of type np.ndarray. "
+                f"Received type: {type(pos_tags)}"
             )
         if not isinstance(metrics, DistanceMetrics):
             raise TypeError(
-                f"metrics は DistanceMetrics 型である必要があります。"
-                f"受け取った型: {type(metrics)}"
+                f"metrics must be of type DistanceMetrics. "
+                f"Received type: {type(metrics)}"
             )
 
         n_vocab: int = len(vocab)
         if vectors.shape[0] != n_vocab:
             raise ValueError(
-                f"vectors の行数 ({vectors.shape[0]}) と "
-                f"vocab のサイズ ({n_vocab}) が一致しません"
+                f"vectors row count ({vectors.shape[0]}) does not match "
+                f"vocab size ({n_vocab})"
             )
 
         self._vectors: np.ndarray = vectors
@@ -205,19 +209,19 @@ class SimilarityEngine:
         self._metrics: DistanceMetrics = metrics
         self._n_vocab: int = n_vocab
 
-        # vocab から逆引きリストを構築: O(N)
+        # Build the inverse index → word list from vocab: O(N)
         self._index_to_word: List[str] = [""] * n_vocab
         for word, idx in vocab.items():
             self._index_to_word[idx] = word
 
         logger.info(
-            "SimilarityEngine 初期化完了: n_vocab=%d, dim=%d",
+            "SimilarityEngine initialized: n_vocab=%d, dim=%d",
             self._n_vocab,
             self._vectors.shape[1],
         )
 
     # -----------------------------------------------------------------------
-    # 公開メソッド
+    # Public methods
     # -----------------------------------------------------------------------
 
     def search(
@@ -226,27 +230,27 @@ class SimilarityEngine:
         top_k: int = 10,
         pos_filter: str | None = None,
     ) -> List[SearchResult]:
-        """クエリ単語の Top-K 類似語を検索する。
+        """Search for the Top-K most similar words to a query word.
 
         Args:
-            query_word: 検索クエリ単語（語彙内に存在する必要がある）。
-            top_k:      返す類似語の最大件数（デフォルト 10）。
-            pos_filter: 指定した品詞のみに絞り込む（例: "NOUN"）。
-                        None の場合は全品詞を返す。
+            query_word: The query word (must exist in the vocabulary).
+            top_k:      Maximum number of similar words to return (default 10).
+            pos_filter: Restrict results to the given POS (for example, ``"NOUN"``).
+                        ``None`` returns all POS tags.
 
         Returns:
-            list[SearchResult]: 類似度降順の検索結果リスト。
+            list[SearchResult]: Results sorted by similarity (descending).
 
         Raises:
-            UnknownWordError: query_word が語彙に存在しない場合。
-            InvalidTopKError: top_k が 1 未満の場合。
+            UnknownWordError: If ``query_word`` is not in the vocabulary.
+            InvalidTopKError: If ``top_k`` is less than 1.
         """
         self._validate_top_k(top_k)
         query_idx: int = self.word_to_index(query_word)
         query_vec: np.ndarray = self._vectors[query_idx]
 
         logger.debug(
-            "search 開始: query=%s (idx=%d), top_k=%d, pos_filter=%s",
+            "search started: query=%s (idx=%d), top_k=%d, pos_filter=%s",
             query_word, query_idx, top_k, pos_filter,
         )
 
@@ -255,7 +259,7 @@ class SimilarityEngine:
         if pos_filter is not None:
             results = [r for r in results if r.pos_tag == pos_filter]
             logger.debug(
-                "品詞フィルタ適用: pos_filter=%s -> %d 件", pos_filter, len(results)
+                "POS filter applied: pos_filter=%s -> %d entries", pos_filter, len(results)
             )
 
         return self._assign_pos_ranks(results)
@@ -266,37 +270,37 @@ class SimilarityEngine:
         other: "SimilarityEngine",
         top_k: int = 10,
     ) -> ComparisonResult:
-        """self エンジンと other エンジンの Top-K 類似語を比較分析する。
+        """Compare the Top-K similar words between ``self`` and ``other``.
 
-        self.search() の結果が static_results に、
-        other.search() の結果が contextual_results に格納される。
-        呼び出し例: static_engine.compare("king", other=contextual_engine)
+        Results from ``self.search()`` are stored in ``static_results`` and
+        results from ``other.search()`` in ``contextual_results``.
+        Example call: ``static_engine.compare("king", other=contextual_engine)``.
 
         Args:
-            query_word: 検索クエリ単語。
-            other:      比較対象の SimilarityEngine インスタンス。
-            top_k:      各エンジンで返す類似語の最大件数。
+            query_word: The query word.
+            other:      The ``SimilarityEngine`` instance to compare against.
+            top_k:      Maximum number of similar words per engine.
 
         Returns:
-            ComparisonResult: 両エンジンの比較結果。
+            ComparisonResult: Comparison result for both engines.
 
         Raises:
-            UnknownWordError: query_word が self の語彙に存在しない場合。
-            InvalidTopKError: top_k が 1 未満の場合。
-            TypeError:        other が SimilarityEngine 型でない場合。
+            UnknownWordError: If ``query_word`` is not in ``self`` 's vocabulary.
+            InvalidTopKError: If ``top_k`` is less than 1.
+            TypeError:        If ``other`` is not a ``SimilarityEngine``.
         """
         if not isinstance(other, SimilarityEngine):
             raise TypeError(
-                f"other は SimilarityEngine 型である必要があります。"
-                f"受け取った型: {type(other)}"
+                f"other must be of type SimilarityEngine. "
+                f"Received type: {type(other)}"
             )
         self._validate_top_k(top_k)
 
-        # 両エンジンの公開メソッドのみ使用（実装詳細に依存しない）
+        # Use only the public methods of both engines (no dependence on internals).
         static_results: List[SearchResult] = self.search(query_word, top_k=top_k)
         contextual_results: List[SearchResult] = other.search(query_word, top_k=top_k)
 
-        # 集合演算で共通語・固有語を算出
+        # Compute shared and unique words via set operations
         static_word_set: set[str] = {r.word for r in static_results}
         contextual_word_set: set[str] = {r.word for r in contextual_results}
 
@@ -304,7 +308,7 @@ class SimilarityEngine:
         static_only: List[str] = sorted(static_word_set - contextual_word_set)
         contextual_only: List[str] = sorted(contextual_word_set - static_word_set)
 
-        # 共通語ごとの順位差・類似度差を計算
+        # Compute rank / similarity differences for each shared word
         static_rank_map: Dict[str, int] = {r.word: r.rank for r in static_results}
         contextual_rank_map: Dict[str, int] = {r.word: r.rank for r in contextual_results}
         static_sim_map: Dict[str, float] = {r.word: r.similarity for r in static_results}
@@ -320,7 +324,7 @@ class SimilarityEngine:
         }
 
         logger.info(
-            "compare 完了: query=%s, 共通=%d語, static固有=%d語, 文脈固有=%d語",
+            "compare done: query=%s, common=%d words, static-only=%d words, contextual-only=%d words",
             query_word, len(common_words), len(static_only), len(contextual_only),
         )
 
@@ -339,40 +343,43 @@ class SimilarityEngine:
         self,
         query_word: str,
     ) -> dict:
-        """クエリ単語と全語彙間のコサイン類似度の分布統計を返す。
+        """Return distribution statistics of cosine similarities between the query and the whole vocabulary.
 
-        全語彙（N-1件、自己参照除外）との類似度を一括計算し、
-        分布の平均・標準偏差・Z-score を算出する。
+        Computes similarities against the full vocabulary (N-1 entries,
+        excluding the self-reference) in a single batch, and derives the
+        distribution's mean, standard deviation, and Z-score.
 
         Z-score = (top1_similarity - mean) / std
-        「Top-1 の類似語が平均から何標準偏差離れているか」を示す。
-        高いほど、上位の類似語が孤立した意味的近隣を持つ。
+        Indicates "how many standard deviations away from the mean the
+        Top-1 similar word is." Larger values indicate that the top
+        neighbors are more isolated within semantic space.
 
         Args:
-            query_word: 検索クエリ単語。
+            query_word: The query word.
 
         Returns:
-            dict: 以下のキーを持つ辞書。
+            dict: A dictionary with the keys below.
 
-            - "query_word"      (str):        クエリ単語
-            - "mean"            (float):      全語彙との平均コサイン類似度
-            - "std"             (float):      標準偏差
-            - "top1_similarity" (float):      Top-1 の類似度スコア
-            - "z_score"         (float):      Top-1 スコアの Z-score
-            - "histogram_data"  (list[float]): 全 N-1 件の類似度スコア（可視化用）
+            - "query_word"      (str):         The query word
+            - "mean"            (float):       Mean cosine similarity over the full vocabulary
+            - "std"             (float):       Standard deviation
+            - "top1_similarity" (float):       Top-1 similarity score
+            - "z_score"         (float):       Z-score of the Top-1 score
+            - "histogram_data"  (list[float]): All N-1 similarity scores (for visualization)
 
         Raises:
-            UnknownWordError: query_word が語彙に存在しない場合。
+            UnknownWordError: If ``query_word`` is not in the vocabulary.
         """
         query_idx: int = self.word_to_index(query_word)
         query_vec: np.ndarray = self._vectors[query_idx]
 
-        # 全語彙との類似度を一括計算（DistanceMetrics に委譲）
+        # Compute similarities against the full vocabulary in a single batch
+        # (delegated to DistanceMetrics).
         all_similarities: np.ndarray = self._metrics.cosine_similarity_batch(
             query_vec, self._vectors
         )
 
-        # 自己参照（類似度 1.0）を除外したマスクを作成
+        # Build a mask that excludes the self-reference (similarity 1.0).
         mask: np.ndarray = np.ones(self._n_vocab, dtype=bool)
         mask[query_idx] = False
         sims_without_self: np.ndarray = all_similarities[mask]
@@ -381,13 +388,13 @@ class SimilarityEngine:
         std_sim: float = float(np.std(sims_without_self))
         top1_sim: float = float(np.max(sims_without_self))
 
-        # std がゼロの場合（全ベクトルが同一など異常系）はゼロ除算を回避
+        # Avoid division by zero when std is zero (for example, when every vector is identical).
         z_score: float = (
             (top1_sim - mean_sim) / std_sim if std_sim > 0.0 else 0.0
         )
 
         logger.debug(
-            "距離分布: query=%s, mean=%.4f, std=%.4f, top1=%.4f, z_score=%.4f",
+            "Distance distribution: query=%s, mean=%.4f, std=%.4f, top1=%.4f, z_score=%.4f",
             query_word, mean_sim, std_sim, top1_sim, z_score,
         )
 
@@ -401,27 +408,27 @@ class SimilarityEngine:
         }
 
     def word_to_index(self, word: str) -> int:
-        """単語を語彙インデックスに変換する。
+        """Convert a word to its vocabulary index.
 
         Args:
-            word: 変換対象の単語。
+            word: The word to convert.
 
         Returns:
-            int: 語彙インデックス（0 始まり）。
+            int: Vocabulary index (0-based).
 
         Raises:
-            UnknownWordError: word が語彙に存在しない場合。
+            UnknownWordError: If ``word`` is not in the vocabulary.
         """
         index: int | None = self._vocab.get(word)
         if index is None:
             raise UnknownWordError(
-                f"'{word}' は語彙に存在しません。"
-                f"（語彙サイズ: {self._n_vocab}）"
+                f"'{word}' is not present in the vocabulary. "
+                f"(vocabulary size: {self._n_vocab})"
             )
         return index
 
     # -----------------------------------------------------------------------
-    # Private メソッド
+    # Private methods
     # -----------------------------------------------------------------------
 
     def _build_results(
@@ -430,19 +437,21 @@ class SimilarityEngine:
         query_idx: int,
         top_k: int,
     ) -> List[SearchResult]:
-        """クエリベクトルから SearchResult のリストを構築する。
+        """Build a list of ``SearchResult`` objects from a query vector.
 
-        _search_single() で Top-K インデックスと類似度を取得し、
-        各結果に対して _build_explanation() で説明辞書を付与する。
-        pos_rank は 0 で初期化し、_assign_pos_ranks() で後から設定する。
+        Obtains Top-K indices and similarities via ``_search_single()``, then
+        attaches the explanation dictionary built by ``_build_explanation()``
+        to each result. ``pos_rank`` is initialized to 0 and set later by
+        ``_assign_pos_ranks()``.
 
         Args:
-            query_vec: クエリ単語の埋め込みベクトル shape (D,)。
-            query_idx: クエリ単語のインデックス（自己参照除外に使用）。
-            top_k:     返す件数。
+            query_vec: Embedding vector of the query word, shape (D,).
+            query_idx: Index of the query word (used to exclude self-reference).
+            top_k:     Number of results to return.
 
         Returns:
-            list[SearchResult]: 類似度降順のリスト（pos_rank=0 で初期化済み）。
+            list[SearchResult]: List sorted by similarity (descending), with
+            ``pos_rank`` left at 0.
         """
         indices, similarities = self._search_single(query_vec, query_idx, top_k)
 
@@ -459,7 +468,7 @@ class SimilarityEngine:
                 similarity=float(sim),
                 rank=rank,
                 pos_tag=pos_tag,
-                pos_rank=0,   # _assign_pos_ranks() で後から設定
+                pos_rank=0,   # Filled in later by _assign_pos_ranks()
                 explanation=explanation,
             ))
 
@@ -471,43 +480,46 @@ class SimilarityEngine:
         query_idx: int,
         top_k: int,
     ) -> tuple[np.ndarray, np.ndarray]:
-        """クエリベクトルと全語彙行列のコサイン類似度を計算し Top-K を返す。
+        """Compute cosine similarities between the query and the whole matrix, returning the Top-K.
 
-        計算は DistanceMetrics.cosine_similarity_batch() に完全委譲する。
-        自己参照（クエリ単語自身）は -inf に置き換えて除外する。
-        top_k が語彙サイズを超える場合は語彙サイズに切り詰める。
+        Computation is delegated entirely to
+        ``DistanceMetrics.cosine_similarity_batch()``.
+        The self-reference (the query word itself) is replaced with ``-inf``
+        to exclude it.
+        If ``top_k`` exceeds the vocabulary size, it is clipped down.
 
-        効率化:
-            np.argpartition で O(N) に Top-K を絞り込んだ後、
-            その k 件のみを O(k log k) でソートする。
-            全語彙ソートの O(N log N) より高速。
+        Optimization:
+            ``np.argpartition`` narrows down the Top-K in O(N), and only
+            those k entries are sorted in O(k log k). This is faster than
+            sorting the entire vocabulary in O(N log N).
 
         Args:
-            query_vec: クエリベクトル shape (D,)。
-            query_idx: クエリ単語のインデックス（除外対象）。
-            top_k:     返す件数。
+            query_vec: The query vector, shape (D,).
+            query_idx: Index of the query word (excluded from results).
+            top_k:     Number of results to return.
 
         Returns:
             tuple[np.ndarray, np.ndarray]:
-                - indices      shape (effective_k,): 類似度降順のインデックス
-                - similarities shape (effective_k,): 対応するコサイン類似度スコア
+                - indices      shape (effective_k,): Indices sorted by descending similarity
+                - similarities shape (effective_k,): Corresponding cosine similarities
         """
-        # 類似度を一括計算（外部ライブラリ禁止: DistanceMetrics に委譲）
-        # cosine_similarity_batch は新規 ndarray を返すため self._vectors は変更されない
+        # Compute similarities in a single batch (no external libraries
+        # allowed; delegated to DistanceMetrics).
+        # cosine_similarity_batch returns a fresh ndarray, so self._vectors is not modified.
         all_sims: np.ndarray = self._metrics.cosine_similarity_batch(
             query_vec, self._vectors
         )
 
-        # 自己参照を -inf に設定して Top-K から除外
+        # Set the self-reference to -inf so it is excluded from Top-K.
         all_sims[query_idx] = -np.inf
 
-        # top_k を有効語彙数（自己除外後: N-1）に制限
+        # Clip top_k to the effective vocabulary size (N-1, after self-exclusion).
         effective_k: int = min(top_k, self._n_vocab - 1)
 
-        # argpartition で Top-K インデックスを O(N) で取得（順序は不定）
+        # Use argpartition to fetch Top-K indices in O(N) (order is unspecified).
         top_k_unordered: np.ndarray = np.argpartition(all_sims, -effective_k)[-effective_k:]
 
-        # Top-K 内をスコア降順でソート: O(k log k)
+        # Sort within the Top-K by descending score: O(k log k).
         sorted_order: np.ndarray = np.argsort(all_sims[top_k_unordered])[::-1]
         top_k_indices: np.ndarray = top_k_unordered[sorted_order]
         top_k_sims: np.ndarray = all_sims[top_k_indices]
@@ -518,17 +530,17 @@ class SimilarityEngine:
         self,
         results: List[SearchResult],
     ) -> List[SearchResult]:
-        """SearchResult リストに同品詞内順位（pos_rank）を付与する。
+        """Assign within-POS rank (``pos_rank``) to each ``SearchResult``.
 
-        results は類似度降順でソート済みであることを前提とする。
-        同品詞グループ内での登場順（類似度順）がそのまま pos_rank になる。
-        元の results の順序（全体順位）は変えない。
+        Assumes ``results`` is already sorted by descending similarity.
+        Appearance order within each POS group (i.e. similarity order) becomes
+        ``pos_rank``. The original overall order of ``results`` is preserved.
 
         Args:
-            results: SearchResult のリスト（類似度降順）。
+            results: List of ``SearchResult`` (descending by similarity).
 
         Returns:
-            list[SearchResult]: pos_rank が設定されたリスト（元の順序を保持）。
+            list[SearchResult]: The same list with ``pos_rank`` filled in.
         """
         pos_counter: Dict[str, int] = {}
 
@@ -544,35 +556,35 @@ class SimilarityEngine:
         query_vec: np.ndarray,
         target_vec: np.ndarray,
     ) -> dict:
-        """2ベクトル間のコサイン類似度計算過程を説明辞書として構築する。
+        """Build the cosine-similarity explanation dictionary for two vectors.
 
-        DistanceMetrics.explain() に委譲する。
-        返される辞書は UI での「なぜこのスコアか」の表示に使用する。
+        Delegates to ``DistanceMetrics.explain()``. The returned dictionary
+        is used to render the "why this score" panel in the UI.
 
         Args:
-            query_vec:  クエリ単語のベクトル shape (D,)。
-            target_vec: 対象単語のベクトル shape (D,)。
+            query_vec:  Query word vector, shape (D,).
+            target_vec: Target word vector, shape (D,).
 
         Returns:
-            dict: DistanceMetrics.explain() が返す辞書。
-                - "dot_product" (float): 内積
-                - "norm_a"      (float): クエリベクトルの L2 ノルム
-                - "norm_b"      (float): 対象ベクトルの L2 ノルム
-                - "similarity"  (float): コサイン類似度
-                - "formula"     (str):   計算式の文字列表現
+            dict: The dictionary returned by ``DistanceMetrics.explain()``.
+                - "dot_product" (float): Dot product
+                - "norm_a"      (float): L2 norm of the query vector
+                - "norm_b"      (float): L2 norm of the target vector
+                - "similarity"  (float): Cosine similarity
+                - "formula"     (str):   String representation of the formula
         """
         return self._metrics.explain(query_vec, target_vec)
 
     def _validate_top_k(self, top_k: int) -> None:
-        """top_k の値を検証する。
+        """Validate the ``top_k`` value.
 
         Args:
-            top_k: 検証対象の値。
+            top_k: Value to validate.
 
         Raises:
-            InvalidTopKError: top_k が 1 未満の場合。
+            InvalidTopKError: If ``top_k`` is less than 1.
         """
         if top_k < 1:
             raise InvalidTopKError(
-                f"top_k は 1 以上である必要があります。受け取った値: {top_k}"
+                f"top_k must be at least 1. Received: {top_k}"
             )

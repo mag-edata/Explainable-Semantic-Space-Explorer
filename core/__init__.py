@@ -1,2 +1,2 @@
-# core パッケージ
-# 純粋ロジック層。Streamlit 依存禁止。
+# core package
+# Pure logic layer. Streamlit dependencies are forbidden.

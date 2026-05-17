@@ -1,24 +1,25 @@
 """
 distance_metrics.py
 ===================
-コサイン類似度の完全自前実装。
+Fully self-contained implementation of cosine similarity.
 
-numpy のみ使用。scipy / sklearn の cosine_similarity は一切使用しない。
-外部ライブラリへの依存ゼロで、計算過程を完全にトレース可能にする。
+Uses numpy only. The ``cosine_similarity`` helpers from scipy / sklearn are
+never used. With zero dependence on external libraries, the entire
+computation path remains fully traceable.
 
-数学的定義:
-    L2 ノルム:
+Mathematical definitions:
+    L2 norm:
         ||v||_2 = sqrt(v_1^2 + v_2^2 + ... + v_D^2)
                 = sqrt(v · v)
 
-    コサイン類似度:
+    Cosine similarity:
         cos(θ) = (a · b) / (||a||_2 × ||b||_2)
                = Σ(a_i × b_i) / (sqrt(Σa_i^2) × sqrt(Σb_i^2))
 
-        範囲: [-1.0, 1.0]
-            1.0  → 同一方向（完全に近い）
-            0.0  → 直交（無関係）
-           -1.0  → 逆方向（完全に遠い）
+        Range: [-1.0, 1.0]
+            1.0  → same direction (perfectly close)
+            0.0  → orthogonal (unrelated)
+           -1.0  → opposite direction (perfectly far)
 """
 
 from __future__ import annotations
@@ -30,22 +31,23 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# ゼロ除算を防ぐ最小ノルム値
+# Minimum norm value used to guard against division by zero
 _EPSILON: float = 1e-10
 
 
 # ---------------------------------------------------------------------------
-# カスタム例外
+# Custom exceptions
 # ---------------------------------------------------------------------------
 
 class DistanceMetricsError(Exception):
-    """DistanceMetrics 固有の例外基底クラス。"""
+    """Base exception class specific to DistanceMetrics."""
 
 
 class VectorDimensionError(DistanceMetricsError):
-    """ベクトルの次元・形状が不正な場合の例外。
+    """Raised when a vector has an invalid dimension or shape.
 
-    例: 2ベクトルの次元数が一致しない、1D でない配列が渡された場合。
+    Examples: two vectors with mismatched dimensions, or an array that
+    is not one-dimensional.
     """
 
 
@@ -54,17 +56,18 @@ class VectorDimensionError(DistanceMetricsError):
 # ---------------------------------------------------------------------------
 
 class DistanceMetrics:
-    """コサイン類似度の完全自前実装クラス。
+    """Fully self-contained implementation class for cosine similarity.
 
-    全メソッドは staticmethod。インスタンス化不要で使用可能。
-    numpy のみを使用し、計算過程を完全にトレースできる設計にする。
+    All methods are staticmethods, so no instantiation is required to use them.
+    The implementation relies on numpy only, keeping every computation step
+    fully traceable.
 
-    数式の明示:
-        L2 ノルム:   ||v||_2 = sqrt(v · v)
-        コサイン:    cos(θ)  = (a · b) / (||a|| × ||b||)
-        バッチ計算:  sim_i   = (M_i · q) / (||M_i|| × ||q||)
+    Explicit formulas:
+        L2 norm:         ||v||_2 = sqrt(v · v)
+        Cosine:          cos(θ)  = (a · b) / (||a|| × ||b||)
+        Batched form:    sim_i   = (M_i · q) / (||M_i|| × ||q||)
 
-    使用例::
+    Example usage::
 
         metrics = DistanceMetrics()
 
@@ -76,63 +79,64 @@ class DistanceMetrics:
 
     @staticmethod
     def l2_norm(vector: np.ndarray) -> float:
-        """ベクトルの L2 ノルム（ユークリッドノルム）を計算する。
+        """Compute the L2 (Euclidean) norm of a vector.
 
-        数式:
+        Formula:
             ||v||_2 = sqrt(v_1^2 + v_2^2 + ... + v_D^2)
                     = sqrt(v · v)
 
-        実装: np.linalg.norm は使用しない。
-        np.sqrt(np.dot(v, v)) で自前計算する。
+        Implementation: ``np.linalg.norm`` is intentionally not used.
+        The norm is computed by hand as ``np.sqrt(np.dot(v, v))``.
 
         Args:
-            vector: 1次元 ndarray、shape (D,)。
+            vector: 1-D ndarray with shape (D,).
 
         Returns:
-            float: L2 ノルム。ゼロベクトルの場合は 0.0。
+            float: The L2 norm. Returns 0.0 for the zero vector.
 
         Raises:
-            VectorDimensionError: vector が 1次元でない場合。
-            TypeError:            vector が ndarray でない場合。
+            VectorDimensionError: If ``vector`` is not 1-D.
+            TypeError:            If ``vector`` is not an ndarray.
         """
         if not isinstance(vector, np.ndarray):
             raise TypeError(
-                f"vector は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(vector)}"
+                f"vector must be of type np.ndarray. "
+                f"Received type: {type(vector)}"
             )
         if vector.ndim != 1:
             raise VectorDimensionError(
-                f"vector は 1次元配列である必要があります。"
-                f"受け取った shape: {vector.shape}"
+                f"vector must be a 1-D array. "
+                f"Received shape: {vector.shape}"
             )
 
-        # np.linalg.norm を使わない自前実装
+        # Self-rolled implementation that avoids np.linalg.norm.
         # sqrt(v · v) = sqrt(v_1^2 + v_2^2 + ... + v_D^2)
         return float(np.sqrt(np.dot(vector, vector)))
 
     @staticmethod
     def cosine_similarity(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
-        """2ベクトル間のコサイン類似度を計算する。
+        """Compute the cosine similarity between two vectors.
 
-        数式:
+        Formula:
             cos(θ) = (a · b) / (||a||_2 × ||b||_2)
                    = Σ(a_i × b_i) / (sqrt(Σa_i^2) × sqrt(Σb_i^2))
 
-        ゼロ除算ガード:
-            ||a|| < ε または ||b|| < ε の場合は 0.0 を返す。
-            ゼロベクトルは意味空間上の位置を持たないため、
-            類似度を定義できないと判断する。
+        Zero-division guard:
+            If ||a|| < ε or ||b|| < ε, returns 0.0.
+            A zero vector has no defined position in semantic space, so
+            similarity is treated as undefined.
 
         Args:
-            vec_a: 1次元 ndarray、shape (D,)。
-            vec_b: 1次元 ndarray、shape (D,)。
+            vec_a: 1-D ndarray with shape (D,).
+            vec_b: 1-D ndarray with shape (D,).
 
         Returns:
-            float: コサイン類似度。範囲: [-1.0, 1.0]。
+            float: Cosine similarity, in the range [-1.0, 1.0].
 
         Raises:
-            VectorDimensionError: どちらかが 1次元でない、または次元数が一致しない場合。
-            TypeError:            どちらかが ndarray でない場合。
+            VectorDimensionError: If either vector is not 1-D, or if the
+                                  two vectors have mismatched dimensions.
+            TypeError:            If either argument is not an ndarray.
         """
         _validate_vector_pair(vec_a, vec_b)
 
@@ -140,10 +144,10 @@ class DistanceMetrics:
         norm_a: float = DistanceMetrics.l2_norm(vec_a)
         norm_b: float = DistanceMetrics.l2_norm(vec_b)
 
-        # ゼロ除算ガード: ゼロベクトルは類似度 0.0 とする
+        # Zero-division guard: treat zero vectors as similarity 0.0
         if norm_a < _EPSILON or norm_b < _EPSILON:
             logger.debug(
-                "cosine_similarity: ゼロベクトル検出 (norm_a=%.2e, norm_b=%.2e) -> 0.0",
+                "cosine_similarity: zero vector detected (norm_a=%.2e, norm_b=%.2e) -> 0.0",
                 norm_a, norm_b,
             )
             return 0.0
@@ -155,53 +159,55 @@ class DistanceMetrics:
         query: np.ndarray,
         matrix: np.ndarray,
     ) -> np.ndarray:
-        """1クエリと行列全体のコサイン類似度を一括計算する。
+        """Compute cosine similarities between a single query and every row of a matrix.
 
-        数式（行列演算）:
+        Formula (matrix form):
             dot_products = M @ q                  shape: (N,)
             row_norms    = sqrt(diag(M @ M^T))    shape: (N,)
                          = sqrt(Σ M_ij^2 for each row i)
             query_norm   = ||q||_2                scalar
             similarities = dot_products / (row_norms × query_norm)
 
-        ゼロ除算ガード:
-            denominator_i < ε の要素は 0.0 に設定する。
+        Zero-division guard:
+            Entries where ``denominator_i < ε`` are set to 0.0.
 
-        計算量:
-            O(N × D): 全語彙に対して1回のバッチ演算。
-            np.argpartition と組み合わせると Top-K 検索は O(N + k log k)。
+        Complexity:
+            O(N × D): a single batched operation over the entire vocabulary.
+            Combined with ``np.argpartition``, Top-K retrieval becomes
+            O(N + k log k).
 
         Args:
-            query:  クエリベクトル。1次元 ndarray、shape (D,)。
-            matrix: 埋め込み行列。2次元 ndarray、shape (N, D)。
+            query:  Query vector. 1-D ndarray with shape (D,).
+            matrix: Embedding matrix. 2-D ndarray with shape (N, D).
 
         Returns:
-            np.ndarray: 各行とのコサイン類似度、shape (N,)。
-                        dtype は float64。
+            np.ndarray: Cosine similarity with each row, shape (N,).
+                        The dtype is float64.
 
         Raises:
-            VectorDimensionError: query が 1次元でない、matrix が 2次元でない、
-                                  または query の次元と matrix の列数が一致しない場合。
-            TypeError:            query または matrix が ndarray でない場合。
+            VectorDimensionError: If ``query`` is not 1-D, ``matrix`` is not
+                                  2-D, or the query dimension does not match
+                                  the number of columns in ``matrix``.
+            TypeError:            If ``query`` or ``matrix`` is not an ndarray.
         """
         _validate_query_matrix(query, matrix)
 
-        # 内積: M @ q → shape (N,)
-        # 行列とベクトルの積で全行との内積を一括計算
+        # Dot product: M @ q → shape (N,)
+        # Matrix-vector product computes dot products with every row at once.
         dot_products: np.ndarray = matrix @ query
 
-        # クエリのノルム（自前実装を使用）
+        # Norm of the query (uses the hand-rolled implementation)
         query_norm: float = DistanceMetrics.l2_norm(query)
 
-        # 各行の L2 ノルム: sqrt(Σ M_ij^2) → shape (N,)
-        # np.linalg.norm は使わない → 手動で sum of squares → sqrt
+        # L2 norm of each row: sqrt(Σ M_ij^2) → shape (N,)
+        # np.linalg.norm is avoided; sum of squares followed by sqrt is done manually.
         row_norms: np.ndarray = np.sqrt((matrix * matrix).sum(axis=1))
 
-        # 分母: ||M_i|| × ||q|| → shape (N,)
+        # Denominator: ||M_i|| × ||q|| → shape (N,)
         denominators: np.ndarray = row_norms * query_norm
 
-        # ゼロ除算ガード: ε 未満の分母を 1.0 に置換してから除算し、
-        # 対応する結果を 0.0 に上書きする
+        # Zero-division guard: substitute 1.0 for denominators below ε before
+        # dividing, then overwrite the corresponding results with 0.0.
         zero_mask: np.ndarray = denominators < _EPSILON
         safe_denominators: np.ndarray = np.where(zero_mask, 1.0, denominators)
 
@@ -210,7 +216,7 @@ class DistanceMetrics:
 
         if zero_mask.any():
             logger.debug(
-                "cosine_similarity_batch: ゼロ除算ガード適用 %d 件",
+                "cosine_similarity_batch: zero-division guard applied to %d entries",
                 int(zero_mask.sum()),
             )
 
@@ -218,34 +224,35 @@ class DistanceMetrics:
 
     @staticmethod
     def explain(vec_a: np.ndarray, vec_b: np.ndarray) -> Dict[str, Any]:
-        """コサイン類似度の計算過程を辞書形式で返す。
+        """Return the cosine-similarity computation breakdown as a dictionary.
 
-        UI での「なぜこのスコアか」説明表示に使用する。
-        計算式を文字列として含めることで、数値だけでなく
-        式の構造ごと出力に埋め込める。
+        Used by the UI to display "why this score" explanations. Including
+        the formula as a string lets the output embed not just the number
+        but the structure of the formula itself.
 
-        数式（文字列 formula に展開される）:
+        Formula (expanded into the ``formula`` string):
             cos(θ) = (a · b) / (||a||_2 × ||b||_2)
                    = {dot_product:.6f} / ({norm_a:.6f} × {norm_b:.6f})
                    = {similarity:.6f}
 
         Args:
-            vec_a: クエリ単語のベクトル、1次元 ndarray、shape (D,)。
-            vec_b: 対象単語のベクトル、1次元 ndarray、shape (D,)。
+            vec_a: Query word vector. 1-D ndarray with shape (D,).
+            vec_b: Target word vector. 1-D ndarray with shape (D,).
 
         Returns:
-            Dict[str, Any]: 計算内訳の辞書。
+            Dict[str, Any]: Breakdown of the computation.
 
-            - "dot_product"  (float): 内積  a · b
-            - "norm_a"       (float): クエリベクトルの L2 ノルム  ||a||_2
-            - "norm_b"       (float): 対象ベクトルの L2 ノルム   ||b||_2
-            - "denominator"  (float): 分母  ||a||_2 × ||b||_2
-            - "similarity"   (float): コサイン類似度  cos(θ)
-            - "formula"      (str):   計算式を値込みで展開した文字列
+            - "dot_product"  (float): Dot product  a · b
+            - "norm_a"       (float): L2 norm of the query vector ||a||_2
+            - "norm_b"       (float): L2 norm of the target vector ||b||_2
+            - "denominator"  (float): Denominator ||a||_2 × ||b||_2
+            - "similarity"   (float): Cosine similarity cos(θ)
+            - "formula"      (str):   The formula expanded with concrete values
 
         Raises:
-            VectorDimensionError: 入力が不正な場合（l2_norm / cosine_similarity に準拠）。
-            TypeError:            入力が ndarray でない場合。
+            VectorDimensionError: Invalid input (same conditions as
+                                  ``l2_norm`` / ``cosine_similarity``).
+            TypeError:            If the input is not an ndarray.
         """
         _validate_vector_pair(vec_a, vec_b)
 
@@ -273,72 +280,73 @@ class DistanceMetrics:
 
 
 # ---------------------------------------------------------------------------
-# モジュール内プライベートヘルパー（バリデーション共通化）
+# Module-private helpers (shared validation logic)
 # ---------------------------------------------------------------------------
 
 def _validate_vector_pair(vec_a: np.ndarray, vec_b: np.ndarray) -> None:
-    """2ベクトルの型・形状・次元数の整合性を検証する。
+    """Validate the type, shape, and dimensionality of two vectors.
 
     Args:
-        vec_a: 検証対象のベクトル A。
-        vec_b: 検証対象のベクトル B。
+        vec_a: Vector A to validate.
+        vec_b: Vector B to validate.
 
     Raises:
-        TypeError:            ndarray でない場合。
-        VectorDimensionError: 1次元でない、または次元数が一致しない場合。
+        TypeError:            If either argument is not an ndarray.
+        VectorDimensionError: If either vector is not 1-D, or if their
+                              dimensions do not match.
     """
     for name, vec in (("vec_a", vec_a), ("vec_b", vec_b)):
         if not isinstance(vec, np.ndarray):
             raise TypeError(
-                f"{name} は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(vec)}"
+                f"{name} must be of type np.ndarray. "
+                f"Received type: {type(vec)}"
             )
         if vec.ndim != 1:
             raise VectorDimensionError(
-                f"{name} は 1次元配列である必要があります。"
-                f"受け取った shape: {vec.shape}"
+                f"{name} must be a 1-D array. "
+                f"Received shape: {vec.shape}"
             )
 
     if vec_a.shape != vec_b.shape:
         raise VectorDimensionError(
-            f"vec_a と vec_b の次元数が一致しません。"
+            f"vec_a and vec_b have mismatched dimensions. "
             f"vec_a: {vec_a.shape}, vec_b: {vec_b.shape}"
         )
 
 
 def _validate_query_matrix(query: np.ndarray, matrix: np.ndarray) -> None:
-    """バッチ計算用のクエリ・行列の型・形状を検証する。
+    """Validate the type and shape of a query / matrix pair used in batch mode.
 
     Args:
-        query:  クエリベクトル。
-        matrix: 埋め込み行列。
+        query:  Query vector.
+        matrix: Embedding matrix.
 
     Raises:
-        TypeError:            ndarray でない場合。
-        VectorDimensionError: 形状・次元数が不正な場合。
+        TypeError:            If either argument is not an ndarray.
+        VectorDimensionError: If the shape or dimensionality is invalid.
     """
     if not isinstance(query, np.ndarray):
         raise TypeError(
-            f"query は np.ndarray 型である必要があります。"
-            f"受け取った型: {type(query)}"
+            f"query must be of type np.ndarray. "
+            f"Received type: {type(query)}"
         )
     if not isinstance(matrix, np.ndarray):
         raise TypeError(
-            f"matrix は np.ndarray 型である必要があります。"
-            f"受け取った型: {type(matrix)}"
+            f"matrix must be of type np.ndarray. "
+            f"Received type: {type(matrix)}"
         )
     if query.ndim != 1:
         raise VectorDimensionError(
-            f"query は 1次元配列である必要があります。"
-            f"受け取った shape: {query.shape}"
+            f"query must be a 1-D array. "
+            f"Received shape: {query.shape}"
         )
     if matrix.ndim != 2:
         raise VectorDimensionError(
-            f"matrix は 2次元配列である必要があります。"
-            f"受け取った shape: {matrix.shape}"
+            f"matrix must be a 2-D array. "
+            f"Received shape: {matrix.shape}"
         )
     if query.shape[0] != matrix.shape[1]:
         raise VectorDimensionError(
-            f"query の次元数と matrix の列数が一致しません。"
-            f"query: {query.shape[0]}, matrix 列数: {matrix.shape[1]}"
+            f"query dimension does not match the number of matrix columns. "
+            f"query: {query.shape[0]}, matrix columns: {matrix.shape[1]}"
         )

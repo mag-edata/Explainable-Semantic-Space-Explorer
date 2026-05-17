@@ -1,22 +1,24 @@
 """
 merge.py
 
-入力:
-    gen_brown() / gen_wiki() の返り値
-    （間接的に Brownコーパス + Simple Wikipedia を参照）
+Inputs:
+    Return values of ``gen_brown()`` / ``gen_wiki()``
+    (indirectly references the Brown corpus + Simple Wikipedia).
 
-出力:
-    data/metadata/vocab.json
+Outputs:
+    ``data/metadata/vocab.json``
 
-本モジュールは、
-以下2コーパスの統合語彙をJSON形式で書き出すことで
-最終的に利用する統合語彙(vocabulary)を構築するための前処理関数を提供する。
-- Brownコーパス由来の語彙
-- Simple Wikipedia由来の語彙
+This module provides the preprocessing function that builds the final
+merged vocabulary by writing the union of the two corpora's vocabularies
+into JSON:
+- Vocabulary from the Brown corpus
+- Vocabulary from Simple Wikipedia
 
-目的は、異なる性質を持つ複数コーパス由来の語彙を統合し、
-特定ドメインへの過度な依存を避けた汎用的な語彙集合を構築することであり、
-類義語検索、単語分散表現、分類・生成モデル等において安定性と網羅性を両立させる。
+The goal is to merge vocabularies from multiple corpora of different
+characteristics into a general-purpose vocabulary set that avoids
+excessive dependence on any specific domain, balancing stability and
+coverage in synonym search, word embeddings, and classification /
+generation models.
 """
 
 import json
@@ -25,7 +27,7 @@ from pathlib import Path
 from data_pipeline.vocab.gen_brown import gen_brown
 from data_pipeline.vocab.gen_wiki import gen_wiki
 
-# ---------- 入出力パス（このスクリプト固有）----------
+# ---------- I/O paths (specific to this script) ----------
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
 VOCAB_JSON: Path = PROJECT_ROOT / "data" / "metadata" / "vocab.json"
 
@@ -35,7 +37,7 @@ def merge() -> list[str]:
     Returns
     -------
     list[str]
-        BrownとSimple Wikipediaの統合語彙をソートした語彙リスト。
+        Sorted vocabulary list combining Brown and Simple Wikipedia.
     """
     brown_vocab = gen_brown()
     wiki_vocab = gen_wiki()
@@ -54,6 +56,6 @@ if __name__ == "__main__":
     with VOCAB_JSON.open("w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 
-    print("統合語彙を生成しました")
-    print(f"- 出力先: {VOCAB_JSON}")
-    print(f"- 件数: {len(vocab)}")
+    print("Merged vocabulary generated")
+    print(f"- output: {VOCAB_JSON}")
+    print(f"- count: {len(vocab)}")

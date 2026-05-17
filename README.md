@@ -2,117 +2,117 @@
 
 > Explainability-focused NLP analysis tool for analyzing why embeddings are semantically close.
 
-単語埋め込み空間を可視化・分析し、**「なぜその単語が近いのか」を数値で説明する**ツール。
+A tool that visualizes and analyzes word embedding spaces, **explaining numerically "why words are close to each other."**
 
-- 静的埋め込み（Word2Vec）と文脈埋め込み（SBERT）の差異を定量的に比較
-- コサイン類似度を内積・ノルム・式の形式で分解し、ブラックボックスにしない
-- 外部 API 不使用・ローカル CPU のみで完全動作
+- Quantitatively compares the differences between static embeddings (Word2Vec) and contextual embeddings (SBERT)
+- Decomposes cosine similarity into dot product, norm, and formula form — no black boxes
+- No external APIs; runs fully on local CPU
 
 ---
 
-## デモ
+## Demo
 
-> スクリーンショット・GIF は追加予定
+> Screenshots / GIFs will be added.
 
-クエリ語 `"bank"` で静的・文脈埋め込みを比較した例:
+Example comparing static and contextual embeddings for the query word `"bank"`:
 
-**Word2Vec（静的）の近傍**
+**Word2Vec (static) neighbors**
 
 ```
 river, shore, creek, lake, ...
 ```
 
-→ 文脈なしのため、地理的な意味に引っ張られる
+→ Without context, the geographical sense dominates.
 
-**SBERT（文脈）の近傍**
+**SBERT (contextual) neighbors**
 
 ```
 financial, credit, loan, fund, ...
 ```
 
-→ コーパス中の文脈から、金融的な意味が優勢になる
+→ The financial sense becomes dominant based on corpus context.
 
-同じ `"bank"` でも埋め込みモデルによって**意味空間の位置が変わる**ことが数値で確認できる。
-
----
-
-## 主な特徴
-
-- **類似度の内訳表示**: コサイン類似度を `dot(a,b) / (‖a‖·‖b‖)` の形式で分解し、内積・ノルムを個別に確認
-- **Z-score による相対評価**: 語彙全体の分布における外れ値度を数値化し、「0.82 は本当に高いか」を判断可能
-- **静的 vs 文脈の並列比較**: Word2Vec と SBERT の近傍語・ランク差・共通語・固有語を対称的に比較
-- **2D 投影 + クラスタリング**: PCA / UMAP で埋め込み空間を俯瞰し、KMeans で意味的グループを確認
-- **品詞フィルタリング**: 名詞・動詞・形容詞などで近傍語を絞り込み、統語的バイアスを分離
+The same word `"bank"` occupies **different positions in semantic space depending on the embedding model**, and this can be confirmed numerically.
 
 ---
 
-## LLM / RAG システムとの関連
+## Key Features
 
-embedding は RAG・意味検索・推薦の基盤技術として広く使われているが、その挙動はブラックボックス化しやすい。本ツールが対象とする問題は以下に直結する:
-
-- **RAG の retrieval 品質評価**: なぜその文書がヒットしたかを説明できなければ、retrieval 失敗の原因を特定できない
-- **意味検索のデバッグ**: コサイン類似度の内訳を見ることで、誤ヒットの原因特定が可能
-- **モデル選定の根拠化**: 静的 vs 文脈埋め込みの差を定量比較することで、用途ごとの選定を説明可能にする
-- **embedding ドリフト分析**: 同一語彙の静的・文脈間の距離分布変化を観察できる
+- **Similarity breakdown**: Decomposes cosine similarity into `dot(a,b) / (‖a‖·‖b‖)` form, showing the dot product and norms individually.
+- **Relative evaluation via Z-score**: Quantifies how much of an outlier a similarity score is within the overall vocabulary distribution, answering "is 0.82 actually high?"
+- **Side-by-side static vs. contextual comparison**: Symmetrically compares neighbors, rank differences, shared words, and unique words between Word2Vec and SBERT.
+- **2D projection + clustering**: Overviews the embedding space with PCA / UMAP and identifies semantic groups via KMeans.
+- **Part-of-speech filtering**: Filters neighbors by POS (noun, verb, adjective, etc.) to isolate syntactic bias.
 
 ---
 
-## アーキテクチャ
+## Relevance to LLM / RAG Systems
 
-依存方向は一方向のみ。逆流禁止。
+Embeddings are widely used as the foundation of RAG, semantic search, and recommendation, but their behavior is easily black-boxed. This tool addresses problems directly tied to these use cases:
+
+- **RAG retrieval quality evaluation**: If you can't explain why a document was retrieved, you can't diagnose retrieval failures.
+- **Semantic search debugging**: Viewing the breakdown of cosine similarity makes it possible to identify the cause of mis-hits.
+- **Justifying model selection**: Quantitatively comparing static vs. contextual embeddings enables explainable per-use-case model choices.
+- **Embedding drift analysis**: Observes how the distance distribution shifts between static and contextual representations of the same vocabulary.
+
+---
+
+## Architecture
+
+Dependencies flow in one direction only. Reverse dependencies are forbidden.
 
 ```
 data/ ──► core/ ──► transforms/ ──► ui/app.py
 ```
 
-| 層 | 役割 |
+| Layer | Role |
 |---|---|
-| `data/` | 埋め込みデータ（読み取り専用） |
-| `core/` | 距離計算・検索・統計など純粋ロジック |
-| `transforms/` | PCA・UMAP・KMeans などベクトル変換 |
-| `ui/` | Streamlit で表示するだけ。ロジック記述禁止 |
+| `data/` | Embedding data (read-only) |
+| `core/` | Pure logic: distance computation, search, statistics |
+| `transforms/` | Vector transformations such as PCA, UMAP, KMeans |
+| `ui/` | Streamlit display only. No business logic allowed. |
 
 ---
 
-## 設計方針
+## Design Rationale
 
-**なぜコサイン類似度を自前実装するか**  
-scipy / sklearn の `cosine_similarity` を使えば 1 行で済む。あえて自前実装することで、計算過程（内積・ノルム・除算）を UI 上に明示し、「類似度とは何か」を説明可能にする。
+**Why implement cosine similarity from scratch?**
+Using `cosine_similarity` from scipy / sklearn would be a one-liner. Implementing it by hand makes the computation steps (dot product, norms, division) explicit in the UI, so users can see *what cosine similarity actually is*.
 
-**なぜ静的と文脈の両方を扱うか**  
-Word2Vec は単語に固定ベクトルを割り当てる（多義語を区別しない）。SBERT は文脈を考慮して動的にベクトルを生成する。この差異を並列表示することで、「どちらが優れているか」ではなく「何が違うのか」を理解できる。
+**Why handle both static and contextual embeddings?**
+Word2Vec assigns a fixed vector per word (it cannot distinguish polysemy). SBERT generates vectors dynamically based on context. Showing both side by side lets users understand *what differs* between them, rather than asking *which is better*.
 
-**なぜ外部 API を使わないか**  
-再現性と透明性を最優先にするため、外部サービスへの依存を排除した。ローカル CPU 環境で完全に動作し、コードを読めば挙動がすべて追える。
+**Why no external APIs?**
+Reproducibility and transparency are the top priorities, so external service dependencies are eliminated. The tool runs entirely on local CPU, and every behavior can be traced by reading the code.
 
-**なぜ NLTK データをリポジトリ内（`data/nltk_data/`）に配置するか**  
-NLTK のデフォルト保存先（`~/nltk_data`）はホームディレクトリに置かれるため、どのプロジェクトのデータか追跡しにくく、環境汚染の原因になる。Brown コーパスとタガーはこのプロジェクト固有のリソースなので、リポジトリ内に明示的に配置して依存関係を自己完結させる。
+**Why place NLTK data inside the repository (`data/nltk_data/`)?**
+NLTK's default location (`~/nltk_data`) sits in the home directory, making it hard to track which project owns the data and polluting the environment. The Brown corpus and tagger are project-specific resources, so placing them inside the repo makes dependencies self-contained.
 
-**なぜ HuggingFace キャッシュはデフォルト（`~/.cache/huggingface/`）のままか**  
-HuggingFace のキャッシュはプロジェクト横断で共有される ML の標準インフラであり、複数プロジェクトが同一データセットを再ダウンロードしないよう設計されている。リポジトリ内に閉じ込めると共有メリットが失われるため、標準に従う。
+**Why leave the HuggingFace cache at its default (`~/.cache/huggingface/`)?**
+The HuggingFace cache is standard ML infrastructure shared across projects, designed so that multiple projects don't re-download identical datasets. Confining it inside the repo would lose this sharing benefit, so we follow the standard.
 
 ---
 
-## 技術スタック
+## Tech Stack
 
-| 役割 | 技術 |
+| Role | Technology |
 |---|---|
-| 静的埋め込み | Word2Vec（学習済みモデル、ローカル配置） |
-| 文脈埋め込み | SBERT（all-MiniLM-L6-v2、ローカル配置） |
-| 次元削減 | PCA / UMAP |
-| クラスタリング | KMeans（コサイン距離） |
+| Static embeddings | Word2Vec (pre-trained model, locally hosted) |
+| Contextual embeddings | SBERT (all-MiniLM-L6-v2, locally hosted) |
+| Dimensionality reduction | PCA / UMAP |
+| Clustering | KMeans (cosine distance) |
 | UI | Streamlit + Altair |
-| 言語 | Python 3.12 |
-| テスト | unittest（192テスト全通過） |
+| Language | Python 3.12 |
+| Testing | unittest (192 tests, all passing) |
 
 ---
 
-## このプロジェクトが示すもの
+## What This Project Demonstrates
 
-- 埋め込み空間の「説明可能性」を設計としてどう組み込むか
-- 外部 API に依存しないローカル完結 NLP パイプラインの構築
-- 静的 vs 文脈埋め込みの差異を定量的に可視化・比較するアーキテクチャ
-- 192テストによるコアロジックの品質担保（core 層 + transforms 層を網羅）
+- How to bake "explainability" into the design of an embedding space exploration tool
+- Building a fully local NLP pipeline that does not depend on external APIs
+- An architecture that quantitatively visualizes and compares static vs. contextual embeddings
+- Quality assurance of core logic via 192 tests (covering both `core/` and `transforms/`)
 
 ---
 
@@ -127,20 +127,20 @@ pip install -r requirements.txt
 python -m streamlit run ui/app.py
 ```
 
-> **Note:** 初回実行前に `data/` 配下の埋め込みファイルを生成する必要があります。詳細は下記 [Full Data Pipeline Setup](#full-data-pipeline-setup) を参照。
+> **Note:** Before the first run, you need to generate the embedding files under `data/`. See [Full Data Pipeline Setup](#full-data-pipeline-setup) below.
 
 ---
 
 ## Full Data Pipeline Setup
 
 <details>
-<summary>初回セットアップ手順（クリックで展開）</summary>
+<summary>First-time setup instructions (click to expand)</summary>
 
 ```bash
-# NLTK データのダウンロード（data/nltk_data/ に保存）
+# Download NLTK data (saved to data/nltk_data/)
 python -c "import nltk; nltk.download('brown', download_dir='data/nltk_data'); nltk.download('averaged_perceptron_tagger_eng', download_dir='data/nltk_data')"
 
-# 資産ファイルの生成（HuggingFace へのアクセスが必要）
+# Generate asset files (requires HuggingFace access)
 python -m data_pipeline.vocab.merge                   # → data/metadata/vocab.json
 python -m data_pipeline.train.train_w2v               # → models/w2v_brown10_simplewiki10_sg_300d_w5.model
 python -m data_pipeline.export.static_vectors         # → data/embeddings/static_vectors.npy
@@ -149,113 +149,113 @@ python -m data_pipeline.export.vocab_pos              # → data/metadata/vocab_
 python -m data_pipeline.manifest                      # → data/manifest.json
 ```
 
-### 動作確認済み環境
+### Verified Environment
 
-**ランタイム**
+**Runtime**
 
-| 項目 | バージョン / 詳細 |
+| Item | Version / Details |
 |---|---|
 | OS | macOS Tahoe 26.3.1 |
 | Python | 3.12 |
-| 仮想環境 | venv（標準ライブラリ） |
+| Virtual environment | venv (standard library) |
 
-**コア依存**
+**Core dependencies**
 
-| パッケージ | バージョン | 用途 |
+| Package | Version | Purpose |
 |---|---|---|
-| numpy | 2.4.2 | ベクトル演算 |
-| scipy | 1.17.1 | 数値計算（補助） |
+| numpy | 2.4.2 | Vector operations |
+| scipy | 1.17.1 | Numerical computation (auxiliary) |
 | scikit-learn | 1.8.0 | KMeans / PCA |
-| umap-learn | 0.5.11 | 非線形次元削減 |
-| numba | 0.64.0 | umap-learn の依存 |
-| pandas | 2.3.3 | データ整形 |
+| umap-learn | 0.5.11 | Non-linear dimensionality reduction |
+| numba | 0.64.0 | Dependency of umap-learn |
+| pandas | 2.3.3 | Data wrangling |
 
-**NLP / 埋め込み**
+**NLP / embeddings**
 
-| パッケージ | バージョン | 用途 |
+| Package | Version | Purpose |
 |---|---|---|
-| gensim | ≥4.3 | Word2Vec 学習 |
-| sentence-transformers | （最新） | SBERT 推論 |
-| nltk | ≥3.8 | Brown コーパス・品詞タガー |
-| datasets | ≥2.16, <3.0 | Simple Wikipedia 取得 |
+| gensim | ≥4.3 | Word2Vec training |
+| sentence-transformers | (latest) | SBERT inference |
+| nltk | ≥3.8 | Brown corpus, POS tagger |
+| datasets | ≥2.16, <3.0 | Fetching Simple Wikipedia |
 
-**UI / 可視化**
+**UI / visualization**
 
-| パッケージ | バージョン |
+| Package | Version |
 |---|---|
 | streamlit | 1.54.0 |
 | altair | 6.0.0 |
 
-**外部資産**
+**External assets**
 
-| 項目 | 詳細 |
+| Item | Details |
 |---|---|
-| Word2Vec モデル | 自前学習（Brown + Simple Wikipedia, sg=1, dim=300, win=5, min_count=5） |
-| SBERT モデル | `all-MiniLM-L6-v2`（HuggingFace） |
-| NLTK データ | `brown`, `averaged_perceptron_tagger_eng`（`data/nltk_data/` に配置） |
+| Word2Vec model | Trained in-house (Brown + Simple Wikipedia, sg=1, dim=300, win=5, min_count=5) |
+| SBERT model | `all-MiniLM-L6-v2` (HuggingFace) |
+| NLTK data | `brown`, `averaged_perceptron_tagger_eng` (placed under `data/nltk_data/`) |
 
-**テスト**
+**Tests**
 
-| 項目 | 詳細 |
+| Item | Details |
 |---|---|
-| フレームワーク | `unittest`（標準ライブラリ） |
-| テスト数 | 192 |
-| 実行方法 | `python -m unittest discover tests` |
+| Framework | `unittest` (standard library) |
+| Test count | 192 |
+| Run command | `python -m unittest discover tests` |
 
 </details>
 
 ---
 
-## プロジェクト構造
+## Project Structure
 
 ```
 Explainable-Semantic-Space-Explorer/
-├── data/                        # 埋め込みベクトル・メタデータ（Git管理外）
+├── data/                        # Embedding vectors and metadata (not tracked by Git)
 │   ├── embeddings/
 │   │   ├── static_vectors.npy     # Word2Vec  shape (83823, 300)
 │   │   └── contextual_vectors.npy # SBERT     shape (83823, 384)
 │   ├── metadata/
-│   │   ├── vocab.json             # 語彙リスト
-│   │   └── vocab_pos.npy          # 品詞ラベル配列 shape (83823,)
-│   ├── nltk_data/                 # NLTK コーパス（Git管理外）
-│   └── manifest.json              # shape / dtype 整合チェック用
+│   │   ├── vocab.json             # Vocabulary list
+│   │   └── vocab_pos.npy          # POS label array, shape (83823,)
+│   ├── nltk_data/                 # NLTK corpora (not tracked by Git)
+│   └── manifest.json              # Used for shape / dtype consistency checks
 │
-├── core/                          # 純粋ロジック層
-│   ├── embedding_loader.py        # ベクトル読み込み・整合チェック
-│   ├── similarity_engine.py       # 類似度検索・比較
-│   ├── distance_metrics.py        # コサイン類似度の自前実装
-│   ├── pos_filter.py              # 品詞フィルタリング
-│   └── analyzer.py                # 距離分布の統計分析
+├── core/                          # Pure logic layer
+│   ├── embedding_loader.py        # Vector loading and consistency checks
+│   ├── similarity_engine.py       # Similarity search and comparison
+│   ├── distance_metrics.py        # Custom cosine similarity implementation
+│   ├── pos_filter.py              # POS-based filtering
+│   └── analyzer.py                # Statistical analysis of distance distributions
 │
-├── transforms/                    # ベクトル変換層
-│   ├── clustering.py              # KMeans クラスタリング
-│   └── projection.py              # PCA / UMAP による 2D 投影
+├── transforms/                    # Vector transformation layer
+│   ├── clustering.py              # KMeans clustering
+│   └── projection.py              # 2D projection via PCA / UMAP
 │
 ├── ui/
-│   └── app.py                     # Streamlit UI（4タブ）
+│   └── app.py                     # Streamlit UI (4 tabs)
 │
-├── tests/                         # 単体テスト群（192テスト全通過）
+├── tests/                         # Unit test suite (192 tests, all passing)
 │
-├── data_pipeline/                 # 資産生成パイプライン（セットアップ時のみ実行）
+├── data_pipeline/                 # Asset generation pipeline (run only at setup)
 │   ├── _common/
-│   │   ├── nltk_setup.py          # NLTK データパス管理・自動ダウンロード
-│   │   ├── token_definition.py    # トークン正規化ルール定義
-│   │   └── tokenizer.py           # 共通トークナイザ
+│   │   ├── nltk_setup.py          # NLTK data path management and auto-download
+│   │   ├── token_definition.py    # Token normalization rules
+│   │   └── tokenizer.py           # Shared tokenizer
 │   ├── vocab/
-│   │   ├── gen_brown.py           # Brown コーパスから語彙生成
-│   │   ├── gen_wiki.py            # Simple Wikipedia から語彙生成
-│   │   └── merge.py               # 語彙統合・ソート → vocab.json
+│   │   ├── gen_brown.py           # Generates vocabulary from the Brown corpus
+│   │   ├── gen_wiki.py            # Generates vocabulary from Simple Wikipedia
+│   │   └── merge.py               # Merges and sorts vocab → vocab.json
 │   ├── export/
-│   │   ├── static_vectors.py      # Word2Vec ベクトルを .npy に書き出し
-│   │   ├── contextual_vectors.py  # SBERT ベクトルを .npy に書き出し
-│   │   └── vocab_pos.py           # 品詞ラベル配列を .npy に書き出し
+│   │   ├── static_vectors.py      # Exports Word2Vec vectors to .npy
+│   │   ├── contextual_vectors.py  # Exports SBERT vectors to .npy
+│   │   └── vocab_pos.py           # Exports POS label array to .npy
 │   ├── train/
-│   │   └── train_w2v.py           # Word2Vec モデル学習
-│   └── manifest.py                # manifest.json 生成・整合チェック
+│   │   └── train_w2v.py           # Trains the Word2Vec model
+│   └── manifest.py                # Generates manifest.json and runs consistency checks
 │
-├── models/                        # Word2Vec モデル配置場所（Git管理外）
+├── models/                        # Word2Vec model location (not tracked by Git)
 │
-├── DOCS/                          # 設計ドキュメント群
+├── DOCS/                          # Design documentation
 │
 ├── requirements.txt
 └── README.md
@@ -267,14 +267,14 @@ Explainable-Semantic-Space-Explorer/
 
 - 192 unit tests passing
 - Core logic and transform layers fully covered
-- Deterministic local execution（乱数 seed 固定）
+- Deterministic local execution (fixed random seed)
 
 ---
 
-## 背景
+## Background
 
-単語の意味関係を統計的に扱う研究をきっかけに、Python による NLP に関心を持った。
+My interest in NLP with Python began with research that treats word semantic relationships statistically.
 
-近年の LLM システムでは embedding が RAG・検索・推薦の基盤技術として使われているが、埋め込み空間の挙動はブラックボックス化しやすい。**なぜその単語が近いのか・モデルごとに何が違うのか**を説明することが難しく、モデル選定・retrieval 品質評価・failure analysis を困難にする。
+In recent LLM systems, embeddings serve as the foundation for RAG, search, and recommendation, yet the behavior of embedding spaces tends to be black-boxed. It is difficult to explain **why two words are close to each other, or what differs from model to model** — and this makes model selection, retrieval quality evaluation, and failure analysis hard.
 
-このプロジェクトでは、埋め込みを「利用する対象」ではなく「分析・説明する対象」として扱い、Explainability を組み込んだ NLP システムとして設計した。
+This project treats embeddings not as something "to be used" but as something "to be analyzed and explained," designed as an NLP system with explainability built in.

@@ -1,19 +1,19 @@
 """
 test_embedding_loader.py
 ========================
-EmbeddingLoader の単体テスト。
+Unit tests for ``EmbeddingLoader``.
 
-テスト対象:
-    - load_all(): 正常系・各ファイルの読み込みと整合チェック
-    - ManifestViolationError: shape / dtype 不一致
-    - IndexAlignmentError: ファイル間の N 不一致・vocab インデックス不正
-    - FileNotFoundError: ファイル欠落
+Targets under test:
+    - ``load_all()``: happy path; loads each file and runs alignment checks
+    - ``ManifestViolationError``: shape / dtype mismatch
+    - ``IndexAlignmentError``: N mismatch across files; invalid vocab indices
+    - ``FileNotFoundError``: missing files
 
-テスト設計:
-    実際の 83,823 語彙資産には依存しない。
-    tempfile.TemporaryDirectory で小規模モックデータを生成してテストする。
+Test design:
+    Does not depend on the real 83,823-word assets.
+    Small mock data is built into a ``tempfile.TemporaryDirectory`` for each test.
 
-実行方法:
+How to run:
     venv/bin/python3 -m unittest tests/test_embedding_loader.py -v
 """
 
@@ -38,7 +38,7 @@ from core.embedding_loader import (
 
 
 # ---------------------------------------------------------------------------
-# テスト用ヘルパー: モック資産ディレクトリを構築する
+# Test helper: build a mock asset directory
 # ---------------------------------------------------------------------------
 
 def _build_mock_assets(
@@ -53,19 +53,19 @@ def _build_mock_assets(
     pos_n_override: int | None = None,
     dtype_override: str | None = None,
 ) -> None:
-    """モック資産ファイルを tmpdir に生成する。
+    """Create mock asset files inside ``tmpdir``.
 
     Args:
-        tmpdir:               一時ディレクトリのパス
-        n:                    語彙数
-        static_dim:           static ベクトルの次元数
-        contextual_dim:            contextual ベクトル(SBERT)の次元数
-        seed:                 乱数シード
-        static_shape_override: manifest の static_vectors.shape を上書き
-        contextual_shape_override:  manifest の contextual_vectors.shape を上書き
-        vocab_override:        vocab.json の内容を上書き
-        pos_n_override:        vocab_pos.npy の長さを上書き
-        dtype_override:        manifest の dtype を上書き
+        tmpdir:                     Path to the temporary directory.
+        n:                          Vocabulary size.
+        static_dim:                 Dimensionality of the static vectors.
+        contextual_dim:             Dimensionality of the contextual vectors (SBERT).
+        seed:                       Random seed.
+        static_shape_override:      Override ``static_vectors.shape`` in the manifest.
+        contextual_shape_override:  Override ``contextual_vectors.shape`` in the manifest.
+        vocab_override:             Override the contents of ``vocab.json``.
+        pos_n_override:             Override the length of ``vocab_pos.npy``.
+        dtype_override:             Override the dtype recorded in the manifest.
     """
     rng = np.random.default_rng(seed)
 
@@ -103,11 +103,11 @@ def _build_mock_assets(
 
 
 # ---------------------------------------------------------------------------
-# テストクラス
+# Test classes
 # ---------------------------------------------------------------------------
 
 class TestLoadAllSuccess(unittest.TestCase):
-    """EmbeddingLoader.load_all() の正常系テスト。"""
+    """Happy-path tests for ``EmbeddingLoader.load_all()``."""
 
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory()
@@ -120,43 +120,43 @@ class TestLoadAllSuccess(unittest.TestCase):
         self._tmpdir.cleanup()
 
     def test_static_vectors_shape(self) -> None:
-        """static_vectors の shape が (N, D) であることを確認。"""
+        """``static_vectors.shape`` is (N, D)."""
         self.assertEqual(self.loader.static_vectors.shape, (5, 4))
 
     def test_contextual_vectors_shape(self) -> None:
-        """contextual_vectors の shape が (N, D) であることを確認。"""
+        """``contextual_vectors.shape`` is (N, D)."""
         self.assertEqual(self.loader.contextual_vectors.shape, (5, 8))
 
     def test_vocab_is_dict(self) -> None:
-        """vocab が dict 型であることを確認。"""
+        """``vocab`` is a dictionary."""
         self.assertIsInstance(self.loader.vocab, dict)
 
     def test_vocab_size(self) -> None:
-        """vocab の件数が N と一致することを確認。"""
+        """``vocab`` size matches N."""
         self.assertEqual(len(self.loader.vocab), 5)
 
     def test_pos_shape(self) -> None:
-        """pos 配列の shape が (N,) であることを確認。"""
+        """``pos.shape`` is (N,)."""
         self.assertEqual(self.loader.pos.shape, (5,))
 
     def test_manifest_loaded(self) -> None:
-        """manifest が dict として読み込まれていることを確認。"""
+        """``manifest`` is loaded as a dictionary."""
         self.assertIsInstance(self.loader.manifest, dict)
         self.assertIn("static_vectors", self.loader.manifest)
 
     def test_vocab_indices_are_contiguous(self) -> None:
-        """vocab のインデックス値が 0 から N-1 の連続整数であることを確認。"""
+        """``vocab`` indices form contiguous integers in [0, N-1]."""
         indices = set(self.loader.vocab.values())
         expected = set(range(len(self.loader.vocab)))
         self.assertEqual(indices, expected)
 
     def test_static_dtype(self) -> None:
-        """static_vectors の dtype が float32 であることを確認。"""
+        """``static_vectors.dtype`` is float32."""
         self.assertEqual(self.loader.static_vectors.dtype, np.float32)
 
 
 class TestManifestViolation(unittest.TestCase):
-    """ManifestViolationError のテスト。"""
+    """Tests for ``ManifestViolationError``."""
 
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory()
@@ -166,30 +166,30 @@ class TestManifestViolation(unittest.TestCase):
         self._tmpdir.cleanup()
 
     def test_shape_mismatch_static(self) -> None:
-        """manifest の static shape が実データと異なる場合に ManifestViolationError が発生する。"""
+        """Mismatched static shape in the manifest raises ``ManifestViolationError``."""
         _build_mock_assets(
             self.tmpdir, n=5,
-            static_shape_override=(99, 4),  # 実際は (5, 4)
+            static_shape_override=(99, 4),  # actual is (5, 4)
         )
         loader = EmbeddingLoader(self.tmpdir)
         with self.assertRaises(ManifestViolationError):
             loader.load_all()
 
     def test_shape_mismatch_contextual(self) -> None:
-        """manifest の contextual shape が実データと異なる場合に ManifestViolationError が発生する。"""
+        """Mismatched contextual shape in the manifest raises ``ManifestViolationError``."""
         _build_mock_assets(
             self.tmpdir, n=5,
-            contextual_shape_override=(5, 999),  # 実際は (5, 8)
+            contextual_shape_override=(5, 999),  # actual is (5, 8)
         )
         loader = EmbeddingLoader(self.tmpdir)
         with self.assertRaises(ManifestViolationError):
             loader.load_all()
 
     def test_dtype_mismatch(self) -> None:
-        """manifest の dtype が実データと異なる場合に ManifestViolationError が発生する。"""
+        """Mismatched dtype in the manifest raises ``ManifestViolationError``."""
         _build_mock_assets(
             self.tmpdir, n=5,
-            dtype_override="float64",  # 実データは float32
+            dtype_override="float64",  # actual data is float32
         )
         loader = EmbeddingLoader(self.tmpdir)
         with self.assertRaises(ManifestViolationError):
@@ -197,7 +197,7 @@ class TestManifestViolation(unittest.TestCase):
 
 
 class TestIndexAlignment(unittest.TestCase):
-    """IndexAlignmentError のテスト。"""
+    """Tests for ``IndexAlignmentError``."""
 
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory()
@@ -207,18 +207,18 @@ class TestIndexAlignment(unittest.TestCase):
         self._tmpdir.cleanup()
 
     def test_pos_n_mismatch(self) -> None:
-        """vocab_pos.npy の長さが vocab と一致しない場合に IndexAlignmentError が発生する。"""
+        """``vocab_pos.npy`` length mismatch raises ``IndexAlignmentError``."""
         _build_mock_assets(
             self.tmpdir, n=5,
-            pos_n_override=3,  # vocab は 5 件だが pos は 3 件
+            pos_n_override=3,  # vocab has 5 entries but pos has 3
         )
         loader = EmbeddingLoader(self.tmpdir)
         with self.assertRaises(IndexAlignmentError):
             loader.load_all()
 
     def test_vocab_index_not_contiguous(self) -> None:
-        """vocab のインデックスが連続整数でない場合に IndexAlignmentError が発生する。"""
-        bad_vocab = {"word0": 0, "word1": 1, "word2": 9}  # 9 は飛びインデックス
+        """Non-contiguous vocab indices raise ``IndexAlignmentError``."""
+        bad_vocab = {"word0": 0, "word1": 1, "word2": 9}  # 9 is a gap
         _build_mock_assets(
             self.tmpdir, n=3,
             vocab_override=bad_vocab,
@@ -228,8 +228,8 @@ class TestIndexAlignment(unittest.TestCase):
             loader.load_all()
 
     def test_vocab_duplicate_index(self) -> None:
-        """vocab にインデックスの重複がある場合に IndexAlignmentError が発生する。"""
-        dup_vocab = {"word0": 0, "word1": 0, "word2": 2}  # 0 が重複
+        """Duplicate vocab indices raise ``IndexAlignmentError``."""
+        dup_vocab = {"word0": 0, "word1": 0, "word2": 2}  # 0 is duplicated
         _build_mock_assets(
             self.tmpdir, n=3,
             vocab_override=dup_vocab,
@@ -240,26 +240,26 @@ class TestIndexAlignment(unittest.TestCase):
 
 
 class TestFileNotFound(unittest.TestCase):
-    """FileNotFoundError のテスト。"""
+    """Tests for ``FileNotFoundError``."""
 
     def test_nonexistent_data_root(self) -> None:
-        """存在しないディレクトリを指定した場合に FileNotFoundError が発生する。"""
+        """A non-existent directory raises ``FileNotFoundError``."""
         with self.assertRaises(FileNotFoundError):
             EmbeddingLoader(Path("/nonexistent/path/data"))
 
     def test_missing_manifest(self) -> None:
-        """manifest.json が欠落している場合に FileNotFoundError が発生する。"""
+        """A missing ``manifest.json`` raises ``FileNotFoundError``."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
             (tmpdir_path / "embeddings").mkdir()
             (tmpdir_path / "metadata").mkdir()
-            # manifest.json を作らない
+            # Do not create manifest.json
             loader = EmbeddingLoader(tmpdir_path)
             with self.assertRaises(FileNotFoundError):
                 loader.load_all()
 
     def test_missing_static_vectors(self) -> None:
-        """static_vectors.npy が欠落している場合に FileNotFoundError が発生する。"""
+        """A missing ``static_vectors.npy`` raises ``FileNotFoundError``."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
             _build_mock_assets(tmpdir_path, n=3)

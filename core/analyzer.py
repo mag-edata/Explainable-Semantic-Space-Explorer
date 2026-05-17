@@ -1,18 +1,19 @@
 """
 analyzer.py
 ===========
-距離分布の統計分析クラス。
+Statistical analysis of distance distributions.
 
-SimilarityEngine.get_distance_distribution() の出力を受け取り、
-以下の分析を提供する:
+Consumes the output of
+``SimilarityEngine.get_distance_distribution()`` and provides:
 
-- 各 SearchResult に対する Z-score の付与
-- ヒストグラムのビン集計（可視化用）
-- static vs contextual の分布比較
-- 近傍安定性スコア（Top-K の重複率）
+- Attaching a Z-score to each ``SearchResult``
+- Aggregating histogram bins (for visualization)
+- Comparing the static vs. contextual distributions
+- A neighborhood-stability score (Top-K overlap)
 
-DistanceMetrics・SimilarityEngine には依存しない（分析のみ）。
-numpy のみを使用する。
+Does not depend on ``DistanceMetrics`` or ``SimilarityEngine``
+(analysis only).
+Uses numpy only.
 """
 
 from __future__ import annotations
@@ -29,41 +30,41 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# カスタム例外
+# Custom exceptions
 # ---------------------------------------------------------------------------
 
 class AnalyzerError(Exception):
-    """Analyzer 固有の例外基底クラス。"""
+    """Base exception class specific to Analyzer."""
 
 
 class InsufficientDataError(AnalyzerError):
-    """統計計算に必要なデータが不足している場合の例外。
+    """Raised when there is not enough data to compute statistics.
 
-    例: histogram_data が空、または std=0 で Z-score が計算できない場合。
+    Examples: ``histogram_data`` is empty, or ``std=0`` so the Z-score is undefined.
     """
 
 
 # ---------------------------------------------------------------------------
-# データクラス
+# Data classes
 # ---------------------------------------------------------------------------
 
 @dataclass
 class DistributionStats:
-    """距離分布の統計サマリー。
+    """Statistical summary of a distance distribution.
 
-    get_distance_distribution() の出力を受け取り、
-    追加統計を付与した構造体。
+    Receives the output of ``get_distance_distribution()`` and augments
+    it with additional statistics.
 
     Attributes:
-        query_word:     クエリ単語
-        mean:           全語彙との平均コサイン類似度
-        std:            標準偏差
-        top1_similarity:Top-1 の類似度スコア
-        z_score:        Top-1 スコアの Z-score = (top1 - mean) / std
-        median:         中央値
-        q25:            第1四分位数（25パーセンタイル）
-        q75:            第3四分位数（75パーセンタイル）
-        n_samples:      サンプル数（語彙サイズ - 1）
+        query_word:      The query word
+        mean:            Mean cosine similarity over the full vocabulary
+        std:             Standard deviation
+        top1_similarity: Top-1 similarity score
+        z_score:         Z-score of the Top-1 score = (top1 - mean) / std
+        median:          Median
+        q25:             First quartile (25th percentile)
+        q75:             Third quartile (75th percentile)
+        n_samples:       Sample count (vocabulary size - 1)
     """
 
     query_word: str
@@ -79,14 +80,14 @@ class DistributionStats:
 
 @dataclass
 class HistogramData:
-    """ヒストグラムのビン集計結果。
+    """Result of histogram bin aggregation.
 
     Attributes:
-        bin_edges:  ビンの境界値リスト（長さ n_bins + 1）
-        counts:     各ビンの頻度リスト（長さ n_bins）
-        n_bins:     ビン数
-        data_min:   データの最小値
-        data_max:   データの最大値
+        bin_edges: List of bin boundaries (length ``n_bins + 1``)
+        counts:    List of per-bin frequencies (length ``n_bins``)
+        n_bins:    Number of bins
+        data_min:  Minimum value in the data
+        data_max:  Maximum value in the data
     """
 
     bin_edges: List[float]
@@ -98,16 +99,16 @@ class HistogramData:
 
 @dataclass
 class DistributionComparison:
-    """static vs contextual の分布比較結果。
+    """Result of comparing the static vs. contextual distributions.
 
     Attributes:
-        query_word:      クエリ単語
-        static_stats:    static エンジンの分布統計
-        contextual_stats:     contextual エンジンの分布統計
-        mean_diff:       平均コサイン類似度の差 (static - contextual)
-        std_diff:        標準偏差の差 (static - contextual)
-        z_score_diff:    Z-score の差 (static - contextual)
-                         正値 = static の方が Top-1 が際立っている
+        query_word:       The query word
+        static_stats:     Distribution statistics from the static engine
+        contextual_stats: Distribution statistics from the contextual engine
+        mean_diff:        Difference in mean cosine similarity (static - contextual)
+        std_diff:         Difference in standard deviation (static - contextual)
+        z_score_diff:     Difference in Z-score (static - contextual)
+                          Positive → static has a more "outstanding" Top-1
     """
 
     query_word: str
@@ -123,12 +124,12 @@ class DistributionComparison:
 # ---------------------------------------------------------------------------
 
 class Analyzer:
-    """距離分布の統計分析クラス。
+    """Statistical analysis of distance distributions.
 
-    全メソッドは staticmethod。インスタンス化不要で使用可能。
-    numpy のみを使用し、すべての計算を自前実装する。
+    All methods are staticmethods, so no instantiation is required.
+    Uses numpy only, with every calculation implemented from scratch.
 
-    使用例::
+    Example usage::
 
         dist = engine.get_distance_distribution("king")
         stats = Analyzer.enrich_distribution(dist)
@@ -145,33 +146,35 @@ class Analyzer:
 
     @staticmethod
     def enrich_distribution(distribution: dict) -> DistributionStats:
-        """get_distance_distribution() の出力に追加統計を付与する。
+        """Augment the output of ``get_distance_distribution()`` with extra statistics.
 
-        中央値・四分位数を追加計算し、DistributionStats として返す。
-        これにより分布の非対称性や外れ値の把握が容易になる。
+        Computes the median and quartiles in addition to the existing fields
+        and returns a ``DistributionStats`` instance. This makes it easier
+        to see the distribution's asymmetry and outliers.
 
         Args:
-            distribution: SimilarityEngine.get_distance_distribution() の返り値。
-                          必須キー: query_word, mean, std, top1_similarity,
-                                    z_score, histogram_data
+            distribution: Return value of
+                ``SimilarityEngine.get_distance_distribution()``.
+                Required keys: ``query_word``, ``mean``, ``std``,
+                ``top1_similarity``, ``z_score``, ``histogram_data``.
 
         Returns:
-            DistributionStats: 追加統計付きの分布サマリー。
+            DistributionStats: Distribution summary with extra statistics.
 
         Raises:
-            KeyError:             必須キーが distribution に存在しない場合。
-            InsufficientDataError: histogram_data が空の場合。
+            KeyError:              If a required key is missing.
+            InsufficientDataError: If ``histogram_data`` is empty.
         """
         required_keys = {"query_word", "mean", "std", "top1_similarity",
                          "z_score", "histogram_data"}
         missing = required_keys - distribution.keys()
         if missing:
-            raise KeyError(f"distribution に必須キーがありません: {missing}")
+            raise KeyError(f"distribution is missing required keys: {missing}")
 
         data: np.ndarray = np.array(distribution["histogram_data"])
         if data.size == 0:
             raise InsufficientDataError(
-                "histogram_data が空です。統計計算ができません"
+                "histogram_data is empty; cannot compute statistics"
             )
 
         median: float = float(np.median(data))
@@ -200,29 +203,30 @@ class Analyzer:
         data: List[float],
         n_bins: int = 50,
     ) -> HistogramData:
-        """類似度データをヒストグラムのビンに集計する。
+        """Aggregate similarity data into histogram bins.
 
-        numpy の histogram を使用し、ビン数・境界値・頻度を返す。
-        結果は Streamlit の棒グラフや st.bar_chart で直接使用可能。
+        Uses ``numpy.histogram`` to return bin counts, edges, and totals.
+        The result can be fed directly to a Streamlit bar chart or
+        ``st.bar_chart``.
 
         Args:
-            data:   類似度スコアのリスト（histogram_data の値）。
-            n_bins: ヒストグラムのビン数（デフォルト 50）。
+            data:   List of similarity scores (the ``histogram_data`` value).
+            n_bins: Number of histogram bins (default 50).
 
         Returns:
-            HistogramData: ビン集計結果。
+            HistogramData: Bin aggregation result.
 
         Raises:
-            InsufficientDataError: data が空の場合。
-            ValueError:            n_bins が 1 未満の場合。
+            InsufficientDataError: If ``data`` is empty.
+            ValueError:            If ``n_bins`` is less than 1.
         """
         if not data:
             raise InsufficientDataError(
-                "data が空です。ヒストグラムを作成できません"
+                "data is empty; cannot build a histogram"
             )
         if n_bins < 1:
             raise ValueError(
-                f"n_bins は 1 以上である必要があります。受け取った値: {n_bins}"
+                f"n_bins must be at least 1. Received: {n_bins}"
             )
 
         arr = np.array(data)
@@ -246,32 +250,35 @@ class Analyzer:
         results: List[SearchResult],
         distribution: dict,
     ) -> List[Dict]:
-        """SearchResult リストに各結果の Z-score を付与した辞書リストを返す。
+        """Return a list of dicts that augments each ``SearchResult`` with its Z-score.
 
-        各結果の類似度スコアを、全語彙の分布上での Z-score に変換する。
-        Z-score は「この結果が平均から何標準偏差離れているか」を示す。
+        Converts each result's similarity score into a Z-score against the
+        full-vocabulary distribution. The Z-score indicates "how many
+        standard deviations away from the mean this result is."
 
-        計算式:
+        Formula:
             z = (similarity - mean) / std
 
-        std=0 の場合（全ベクトルが同一など）は z_score=0.0 として返す。
+        When ``std == 0`` (for example, every vector is identical), the
+        Z-score is returned as 0.0.
 
         Args:
-            results:      SearchResult のリスト（類似度降順）。
-            distribution: SimilarityEngine.get_distance_distribution() の返り値。
+            results:      List of ``SearchResult`` (descending by similarity).
+            distribution: Return value of
+                ``SimilarityEngine.get_distance_distribution()``.
 
         Returns:
-            List[Dict]: 各要素が以下のキーを持つ辞書リスト。
-                - "word"        (str):   対象単語
-                - "rank"        (int):   全体順位
-                - "similarity"  (float): コサイン類似度
-                - "pos_tag"     (str):   品詞ラベル
-                - "pos_rank"    (int):   品詞内順位
-                - "z_score"     (float): 分布上の Z-score
-                - "explanation" (dict):  距離計算内訳
+            List[Dict]: List of dictionaries with the keys below.
+                - "word"        (str):   Target word
+                - "rank"        (int):   Overall rank
+                - "similarity"  (float): Cosine similarity
+                - "pos_tag"     (str):   POS label
+                - "pos_rank"    (int):   Within-POS rank
+                - "z_score"     (float): Z-score against the distribution
+                - "explanation" (dict):  Distance computation breakdown
 
         Raises:
-            KeyError: distribution に mean / std キーがない場合。
+            KeyError: If ``distribution`` is missing ``mean`` or ``std``.
         """
         mean: float = distribution["mean"]
         std: float = distribution["std"]
@@ -292,7 +299,7 @@ class Analyzer:
             })
 
         logger.debug(
-            "attach_z_scores: %d 件に Z-score を付与 (mean=%.4f, std=%.4f)",
+            "attach_z_scores: attached Z-score to %d entries (mean=%.4f, std=%.4f)",
             len(scored), mean, std,
         )
         return scored
@@ -303,24 +310,25 @@ class Analyzer:
         static_dist: dict,
         contextual_dist: dict,
     ) -> DistributionComparison:
-        """static と contextual の距離分布を比較する。
+        """Compare the static and contextual distance distributions.
 
-        両モデルの mean / std / z_score の差分を算出する。
-        差分の解釈:
-            mean_diff > 0  → static の方が全体的に類似度が高い傾向
-            z_score_diff > 0 → static の方が Top-1 が分布から際立っている
+        Computes the differences between the two models' ``mean`` / ``std`` /
+        ``z_score``.
+        Interpretation of the diffs:
+            ``mean_diff > 0``    → static tends to have overall higher similarities
+            ``z_score_diff > 0`` → static's Top-1 stands out more from the distribution
 
         Args:
-            query_word:  クエリ単語。
-            static_dist: static エンジンの get_distance_distribution() 返り値。
-            contextual_dist:  contextual エンジンの get_distance_distribution() 返り値。
+            query_word:      The query word.
+            static_dist:     Return value of ``get_distance_distribution()`` from the static engine.
+            contextual_dist: Return value of ``get_distance_distribution()`` from the contextual engine.
 
         Returns:
-            DistributionComparison: 両分布の比較結果。
+            DistributionComparison: Comparison result for both distributions.
 
         Raises:
-            InsufficientDataError: どちらかの histogram_data が空の場合。
-            KeyError:              必須キーが存在しない場合。
+            InsufficientDataError: If either ``histogram_data`` is empty.
+            KeyError:              If a required key is missing.
         """
         static_stats = Analyzer.enrich_distribution(static_dist)
         contextual_stats = Analyzer.enrich_distribution(contextual_dist)
@@ -349,30 +357,32 @@ class Analyzer:
         static_results: List[SearchResult],
         contextual_results: List[SearchResult],
     ) -> float:
-        """Top-K 結果の近傍安定性スコアを計算する。
+        """Compute the neighborhood-stability score for Top-K results.
 
-        static と contextual の Top-K 結果の重複率（Jaccard 係数）を返す。
-        値が高いほど、両モデルで一致する近傍を持つ（安定した意味空間）。
+        Returns the overlap rate (Jaccard coefficient) between the
+        static and contextual Top-K results. A higher value indicates
+        that both models share the same neighbors (a stable semantic
+        neighborhood).
 
-        計算式:
+        Formula:
             stability = |static ∩ contextual| / |static ∪ contextual|
 
         Args:
-            static_results: static エンジンの Top-K 検索結果。
-            contextual_results:  contextual エンジンの Top-K 検索結果。
+            static_results:     Top-K results from the static engine.
+            contextual_results: Top-K results from the contextual engine.
 
         Returns:
-            float: Jaccard 係数。範囲: [0.0, 1.0]。
-                   1.0 = 完全一致（両モデルが同じ近傍を返す）
-                   0.0 = 完全不一致
+            float: Jaccard coefficient, in [0.0, 1.0].
+                   1.0 = perfect agreement (both models return the same neighbors)
+                   0.0 = no overlap
 
         Raises:
-            ValueError: どちらかの results が空の場合。
+            ValueError: If either ``results`` argument is empty.
         """
         if not static_results:
-            raise ValueError("static_results が空です")
+            raise ValueError("static_results is empty")
         if not contextual_results:
-            raise ValueError("contextual_results が空です")
+            raise ValueError("contextual_results is empty")
 
         static_words: set[str] = {r.word for r in static_results}
         contextual_words: set[str] = {r.word for r in contextual_results}

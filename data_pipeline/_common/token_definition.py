@@ -1,18 +1,20 @@
 """
 token_definition.py
 
-本モジュールは、プロジェクト全体で使用可能とするトークンの構成要素を定義する。
+This module defines the building blocks of tokens that are valid across
+the entire project.
 
-目的は、上記定義を単一箇所に固定することであり、
-語彙生成・コーパス生成・モデル学習・推論等の段階において
-前処理の一貫性と再現性を保証する。
+The goal is to fix the definition in a single location, guaranteeing
+consistency and reproducibility of preprocessing throughout vocabulary
+generation, corpus generation, model training, and inference.
 
-トークン定義を変更する場合は、本ファイルのみを修正する設計とする。
+When the token definition needs to change, this file is the only place
+that should be modified.
 """
 
 import re
 
-# 英字列抽出パターン（トークン候補生成用）
+# Pattern for extracting alphabetic sequences (used to generate token candidates)
 TOKEN_EXTRACT_PATTERN = re.compile(r"[a-zA-Z]+")
-# 英字のみを構成要素とするトークンへのフィルタリング制約
+# Filtering constraint for tokens composed only of alphabetic characters
 TOKEN_CONSTRAINT_PATTERN = re.compile(r"^[a-zA-Z]+$")

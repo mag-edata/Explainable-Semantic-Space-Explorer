@@ -1,10 +1,12 @@
 """
-transforms パッケージ
-====================
-ベクトル変換層。core/ 層の出力（埋め込み行列）を受け取り、
-投影・クラスタリングなどの変換操作を行う。
+transforms package
+==================
+Vector transformation layer. Receives output from the ``core/`` layer
+(embedding matrices) and performs transformation operations such as
+projection and clustering.
 
-依存方向: core/ → transforms/ （transforms は ui/ に依存してはならない）
+Dependency direction: ``core/`` → ``transforms/`` (``transforms`` must
+never depend on ``ui/``).
 """
 
 from transforms.clustering import ClusterResult, KMeansClusterer
