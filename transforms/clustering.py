@@ -1,21 +1,22 @@
 """
 clustering.py
 =============
-KMeans クラスタリングによる単語埋め込みのグループ化モジュール。
+Module for grouping word embeddings via KMeans clustering.
 
-コサイン距離に基づくクラスタリングを実現するため、
-ベクトルを L2 正規化したうえで sklearn の KMeans（ユークリッド距離）を適用する。
+To realize cosine-distance clustering, vectors are L2-normalized first
+and then sklearn's KMeans (Euclidean distance) is applied.
 
     cos(a, b) = dot(a, b) / (‖a‖ · ‖b‖)
 
-unit vector に正規化すると ‖â‖ = ‖b̂‖ = 1 であるため、
+Once normalized to unit vectors, ‖â‖ = ‖b̂‖ = 1, hence
     ‖â - b̂‖² = 2 - 2·cos(a, b)
-となり、ユークリッド距離の最小化がコサイン距離の最小化と等価になる。
+which means minimizing Euclidean distance is equivalent to minimizing
+cosine distance.
 
-制約:
-    - ノルム計算は自前実装（np.linalg.norm 禁止）
-    - コサイン/正規化処理は自前実装（sklearn の cosine_similarity 禁止）
-    - 乱数 seed は必ず固定（再現性保証）
+Constraints:
+    - Norm computation is implemented from scratch (np.linalg.norm forbidden).
+    - Cosine / normalization is implemented from scratch (sklearn cosine_similarity forbidden).
+    - The random seed must always be fixed (reproducibility guarantee).
 """
 
 from __future__ import annotations
@@ -28,46 +29,47 @@ from sklearn.cluster import KMeans
 
 logger = logging.getLogger(__name__)
 
-# ---------- 定数 ----------
+# ---------- Constants ----------
 DEFAULT_SEED: int = 42
 DEFAULT_N_CLUSTERS: int = 8
 DEFAULT_MAX_ITER: int = 300
-EPSILON: float = 1e-10  # ゼロ除算ガード（ノルムがほぼゼロのベクトル対策）
+EPSILON: float = 1e-10  # Zero-division guard (handles near-zero-norm vectors)
 
 
-# ---------- 例外クラス ----------
+# ---------- Exception classes ----------
 
 
 class ClusterError(Exception):
-    """cluster モジュール固有の例外基底クラス。"""
+    """Base exception class specific to the cluster module."""
 
 
 class NotFittedError(ClusterError):
-    """fit() を呼ぶ前に get_labels() / get_result() を呼び出した場合の例外。"""
+    """Raised when ``get_labels()`` / ``get_result()`` is called before ``fit()``."""
 
 
 class InvalidClusterCountError(ClusterError):
-    """n_clusters の値が不正な場合の例外（0以下、または語彙数を超える）。"""
+    """Raised when ``n_clusters`` is invalid (≤ 0 or larger than the vocabulary size)."""
 
 
 class UnfitVectorError(ClusterError):
-    """入力ベクトルの型や形状が不正な場合の例外。"""
+    """Raised when the input vectors have an invalid type or shape."""
 
 
-# ---------- データクラス ----------
+# ---------- Data classes ----------
 
 
 @dataclass
 class ClusterResult:
-    """KMeans クラスタリングの結果サマリー。
+    """Summary of a KMeans clustering result.
 
     Attributes:
-        labels:     各単語のクラスタID（0始まり）。shape (N,)。
-        n_clusters: 指定したクラスタ数。
-        inertia:    クラスタ内ユークリッド二乗和（正規化空間での値）。
-                    値が小さいほど密なクラスタを形成している。
-        seed:       使用した乱数シード（再現性確認用）。
-        n_samples:  クラスタリング対象の語彙数 N。
+        labels:     Cluster IDs for each word (0-based). Shape (N,).
+        n_clusters: The cluster count that was requested.
+        inertia:    Within-cluster sum of squared Euclidean distances
+                    (computed in the normalized space). Smaller values
+                    indicate denser clusters.
+        seed:       The random seed used (for reproducibility checks).
+        n_samples:  Vocabulary size N that was clustered.
     """
 
     labels: np.ndarray
@@ -77,26 +79,26 @@ class ClusterResult:
     n_samples: int
 
 
-# ---------- メインクラス ----------
+# ---------- Main class ----------
 
 
 class KMeansClusterer:
-    """コサイン距離ベースの KMeans クラスタリングクラス。
+    """Cosine-distance KMeans clustering class.
 
-    内部では入力ベクトルを L2 正規化したうえで
-    sklearn の KMeans（ユークリッド距離）を適用する。
-    これによりコサイン距離によるクラスタリングと等価な結果を得る。
+    Internally, vectors are L2-normalized and then sklearn's KMeans
+    (Euclidean distance) is applied. The result is equivalent to
+    clustering by cosine distance.
 
-    数式（コサイン ↔ ユークリッド の等価変換）:
-        ‖â - b̂‖² = 2 - 2·cos(a, b)  （â, b̂ は unit vector）
+    Equivalence formula (cosine ↔ Euclidean):
+        ‖â - b̂‖² = 2 - 2·cos(a, b)   (â and b̂ are unit vectors)
 
-    乱数シードは初期化時に固定し、再現性を保証する。
+    The random seed is fixed at initialization time, guaranteeing reproducibility.
 
     Attributes:
-        _n_clusters: クラスタ数。
-        _seed:       乱数シード。
-        _max_iter:   KMeans 最大反復回数。
-        _result:     fit() 後に格納される ClusterResult。None = 未 fit。
+        _n_clusters: Number of clusters.
+        _seed:       Random seed.
+        _max_iter:   Maximum number of KMeans iterations.
+        _result:     ``ClusterResult`` populated after ``fit()``. ``None`` = not fitted.
     """
 
     def __init__(
@@ -105,18 +107,18 @@ class KMeansClusterer:
         seed: int = DEFAULT_SEED,
         max_iter: int = DEFAULT_MAX_ITER,
     ) -> None:
-        """KMeansClusterer を初期化する。
+        """Initialize the KMeansClusterer.
 
         Args:
-            n_clusters: クラスタ数（デフォルト: 8）。
-                        fit() 時に語彙数 N との整合性を検証する。
-            seed:       乱数シード（デフォルト: 42）。
-                        同一データ・同一シードで完全再現を保証する。
-            max_iter:   KMeans の最大反復回数（デフォルト: 300）。
+            n_clusters: Number of clusters (default: 8).
+                        Consistency with vocabulary size N is validated at ``fit()`` time.
+            seed:       Random seed (default: 42).
+                        Guarantees full reproducibility for the same data and seed.
+            max_iter:   Maximum number of KMeans iterations (default: 300).
 
         Raises:
-            TypeError:              n_clusters / seed / max_iter が int でない場合。
-            InvalidClusterCountError: n_clusters が 1 未満の場合。
+            TypeError:                If ``n_clusters`` / ``seed`` / ``max_iter`` is not int.
+            InvalidClusterCountError: If ``n_clusters`` is less than 1.
         """
         if not isinstance(n_clusters, int):
             raise TypeError(
@@ -151,30 +153,31 @@ class KMeansClusterer:
             self._max_iter,
         )
 
-    # ---------- 公開 API ----------
+    # ---------- Public API ----------
 
     def fit(self, vectors: np.ndarray) -> ClusterResult:
-        """ベクトル行列に KMeans クラスタリングを適用する。
+        """Apply KMeans clustering to a vector matrix.
 
-        入力ベクトルを L2 正規化してからクラスタリングを実行する。
-        正規化後は Euclidean 距離最小化 ≡ コサイン距離最小化 となる。
+        L2-normalizes the input vectors before running clustering.
+        After normalization, minimizing Euclidean distance is equivalent
+        to minimizing cosine distance.
 
-        処理フロー:
-            1. 入力バリデーション
-            2. L2 ノルム一括計算: ‖v_i‖ = sqrt(Σ v_{ij}²)
-            3. 行単位の L2 正規化:  v̂_i = v_i / ‖v_i‖
-            4. sklearn.KMeans.fit(unit_vectors)
-            5. ClusterResult 構築・返却
+        Pipeline:
+            1. Validate inputs.
+            2. Compute L2 norms in batch: ``‖v_i‖ = sqrt(Σ v_{ij}²)``.
+            3. Row-wise L2 normalization: ``v̂_i = v_i / ‖v_i‖``.
+            4. ``sklearn.KMeans.fit(unit_vectors)``.
+            5. Build and return ``ClusterResult``.
 
         Args:
-            vectors: 埋め込み行列。shape (N, D)。dtype は float32 推奨。
+            vectors: Embedding matrix, shape (N, D). float32 dtype recommended.
 
         Returns:
-            ClusterResult: クラスタラベル・inertia 等を含む結果オブジェクト。
+            ClusterResult: Result object containing cluster labels, inertia, etc.
 
         Raises:
-            UnfitVectorError:         vectors が np.ndarray でない、または次元数が 2 でない場合。
-            InvalidClusterCountError: n_clusters が語彙数 N を超える場合。
+            UnfitVectorError:         If ``vectors`` is not an ndarray, or its ndim != 2.
+            InvalidClusterCountError: If ``n_clusters`` exceeds the vocabulary size N.
         """
         self._validate_inputs(vectors)
 
@@ -213,13 +216,13 @@ class KMeansClusterer:
         return self._result
 
     def get_labels(self) -> np.ndarray:
-        """クラスタラベル配列を返す。
+        """Return the cluster label array.
 
         Returns:
-            np.ndarray: 各単語のクラスタID（0始まり）。shape (N,)。
+            np.ndarray: Cluster IDs for each word (0-based), shape (N,).
 
         Raises:
-            NotFittedError: fit() を呼び出す前に呼んだ場合。
+            NotFittedError: If called before ``fit()``.
         """
         if self._result is None:
             raise NotFittedError(
@@ -228,13 +231,14 @@ class KMeansClusterer:
         return self._result.labels
 
     def get_result(self) -> ClusterResult:
-        """クラスタリング結果全体を返す。
+        """Return the full clustering result.
 
         Returns:
-            ClusterResult: labels / n_clusters / inertia / seed / n_samples を含む結果。
+            ClusterResult: Contains ``labels`` / ``n_clusters`` / ``inertia`` /
+            ``seed`` / ``n_samples``.
 
         Raises:
-            NotFittedError: fit() を呼び出す前に呼んだ場合。
+            NotFittedError: If called before ``fit()``.
         """
         if self._result is None:
             raise NotFittedError(
@@ -242,25 +246,26 @@ class KMeansClusterer:
             )
         return self._result
 
-    # ---------- 自前実装: ノルム・正規化（staticmethod）----------
+    # ---------- Hand-rolled implementations: norm and normalization (staticmethod) ----------
 
     @staticmethod
     def _l2_norm_batch(matrix: np.ndarray) -> np.ndarray:
-        """行列の各行について L2 ノルムを一括計算する。
+        """Compute the L2 norm for each row of a matrix in batch.
 
-        数式:
+        Formula:
             ‖v‖ = sqrt(Σ_j v_j²)   for each row v
 
-        実装は np.linalg.norm を使わず、自前で平方和 → sqrt を計算する:
-            norms = sqrt( sum(matrix * matrix, axis=1) )
-        ゼロベクトルへの除算を防ぐため、結果に EPSILON を加算してクランプしない
-        （正規化ステップ側で別途ガードする）。
+        ``np.linalg.norm`` is not used. The sum of squares followed by
+        ``sqrt`` is computed by hand:
+            ``norms = sqrt( sum(matrix * matrix, axis=1) )``
+        ``EPSILON`` is not added here to clamp against division by zero;
+        the normalization step guards against it separately.
 
         Args:
-            matrix: 入力行列。shape (N, D)。
+            matrix: Input matrix, shape (N, D).
 
         Returns:
-            np.ndarray: 各行の L2 ノルム。shape (N,)。
+            np.ndarray: L2 norm of each row, shape (N,).
         """
         row_sq_sum: np.ndarray = (matrix * matrix).sum(axis=1)
         norms: np.ndarray = np.sqrt(row_sq_sum)
@@ -268,26 +273,27 @@ class KMeansClusterer:
 
     @staticmethod
     def _normalize_rows(matrix: np.ndarray) -> np.ndarray:
-        """行列の各行を L2 ノルムで正規化し、unit vector 行列を返す。
+        """L2-normalize each row of the matrix and return the unit-vector matrix.
 
-        数式:
+        Formula:
             â_i = a_i / ‖a_i‖   for each row a_i
 
-        ゼロベクトル（‖a_i‖ < EPSILON）はゼロのまま保持する（除算スキップ）。
-        これにより NaN の発生を防ぐ。
+        Zero vectors (where ``‖a_i‖ < EPSILON``) are kept as-is (division
+        skipped). This prevents NaN values.
 
         Args:
-            matrix: 入力行列。shape (N, D)。
+            matrix: Input matrix, shape (N, D).
 
         Returns:
-            np.ndarray: 正規化済み行列。shape (N, D)。各行の L2 ノルムは 1.0（ゼロ行を除く）。
+            np.ndarray: Normalized matrix, shape (N, D). Each row has L2 norm 1.0
+            (except for skipped zero rows).
         """
         norms: np.ndarray = KMeansClusterer._l2_norm_batch(matrix)
 
-        # ゼロベクトルのマスク（除算を回避）
+        # Mask for zero vectors (avoids division)
         valid_mask: np.ndarray = norms >= EPSILON
 
-        # コピーして正規化（元の matrix を変更しない）
+        # Copy and normalize (do not mutate the original matrix)
         unit_matrix: np.ndarray = matrix.copy().astype(np.float64)
         unit_matrix[valid_mask] = (
             matrix[valid_mask] / norms[valid_mask, np.newaxis]
@@ -302,18 +308,18 @@ class KMeansClusterer:
 
         return unit_matrix
 
-    # ---------- バリデーション ----------
+    # ---------- Validation ----------
 
     def _validate_inputs(self, vectors: np.ndarray) -> None:
-        """fit() の入力を検証する。
+        """Validate the input to ``fit()``.
 
         Args:
-            vectors: 検証対象の埋め込み行列。
+            vectors: Embedding matrix to validate.
 
         Raises:
-            UnfitVectorError:         vectors が np.ndarray でない場合。
-            UnfitVectorError:         vectors の次元数が 2 でない場合。
-            InvalidClusterCountError: n_clusters が語彙数 N を超える場合。
+            UnfitVectorError:         If ``vectors`` is not an ndarray.
+            UnfitVectorError:         If ``vectors.ndim`` is not 2.
+            InvalidClusterCountError: If ``n_clusters`` exceeds the vocabulary size N.
         """
         if not isinstance(vectors, np.ndarray):
             raise UnfitVectorError(

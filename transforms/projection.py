@@ -1,23 +1,25 @@
 """
 projection.py
 =============
-高次元埋め込みベクトルを 2D 座標に投影するモジュール。
+Module that projects high-dimensional embedding vectors onto 2D coordinates.
 
-対応手法:
-    - PCA  (Principal Component Analysis)  : 線形次元削減
-    - UMAP (Uniform Manifold Approximation): 非線形次元削減
+Supported methods:
+    - PCA  (Principal Component Analysis):  Linear dimensionality reduction
+    - UMAP (Uniform Manifold Approximation): Non-linear dimensionality reduction
 
-どちらも seed を固定することで完全再現性を保証する。
-UMAP は局所的な近傍構造を保持し、PCA より視覚的なクラスタ分離が明確になる傾向がある。
-一方 PCA は主成分寄与率（explained_variance_ratio_）で投影の情報保持量を定量化できる。
+Fixing the seed guarantees full reproducibility for both methods.
+UMAP preserves local neighborhood structure and tends to produce
+visually clearer cluster separation than PCA. On the other hand, PCA
+allows quantifying how much information the projection retains via the
+explained variance ratio (``explained_variance_ratio_``).
 
-数式（PCA）:
-    Z = X · V^T      （V は上位 k 主成分の行列、ここで k=2）
-    各主成分の寄与率 = λ_i / Σλ_j
+Formula (PCA):
+    Z = X · V^T      (V is the matrix of the top-k principal components; here k=2)
+    Contribution rate per component = λ_i / Σλ_j
 
-制約:
-    - 乱数 seed は必ず固定（再現性保証）
-    - Streamlit / 外部 API への依存禁止
+Constraints:
+    - The random seed must always be fixed (reproducibility guarantee).
+    - No dependency on Streamlit or external APIs.
 """
 
 from __future__ import annotations
@@ -32,49 +34,50 @@ from umap import UMAP
 
 logger = logging.getLogger(__name__)
 
-# ---------- 定数 ----------
+# ---------- Constants ----------
 DEFAULT_SEED: int = 42
 DEFAULT_METHOD: str = "pca"
 SUPPORTED_METHODS: tuple[str, ...] = ("pca", "umap")
 
 
-# ---------- 例外クラス ----------
+# ---------- Exception classes ----------
 
 
 class ProjectionError(Exception):
-    """projection モジュール固有の例外基底クラス。"""
+    """Base exception class specific to the projection module."""
 
 
 class NotFittedError(ProjectionError):
-    """fit_transform() を呼ぶ前に結果を参照しようとした場合の例外。"""
+    """Raised when results are accessed before ``fit_transform()`` is called."""
 
 
 class InvalidMethodError(ProjectionError):
-    """サポートされていない投影手法が指定された場合の例外。"""
+    """Raised when an unsupported projection method is specified."""
 
 
 class InvalidVectorError(ProjectionError):
-    """入力ベクトルの型や形状が不正な場合の例外。"""
+    """Raised when the input vectors have an invalid type or shape."""
 
 
-# ---------- データクラス ----------
+# ---------- Data classes ----------
 
 
 @dataclass
 class ProjectionResult:
-    """2D 投影の結果サマリー。
+    """Summary of a 2D projection result.
 
     Attributes:
-        coords_2d:         各単語の 2D 座標。shape (N, 2)。
-                           coords_2d[i] = (x, y) が語彙インデックス i に対応する。
-        explained_variance: 主成分の寄与率リスト（PCA のみ）。
-                           [第1主成分の寄与率, 第2主成分の寄与率]（0.0〜1.0）。
-                           UMAP の場合は空リスト []。
-        method:            使用した投影手法名（"pca" または "umap"）。
-        cluster_labels:    クラスタID 配列。shape (N,)。
-                           attach_clusters() で付与するまでは None。
-        n_samples:         投影した語彙数 N。
-        seed:              使用した乱数シード（再現性確認用）。
+        coords_2d:          2D coordinates for each word, shape (N, 2).
+                            ``coords_2d[i] = (x, y)`` corresponds to
+                            vocabulary index i.
+        explained_variance: Per-component contribution rates (PCA only).
+                            ``[ratio for PC1, ratio for PC2]`` in [0.0, 1.0].
+                            For UMAP, this is an empty list.
+        method:             Projection method name (``"pca"`` or ``"umap"``).
+        cluster_labels:     Cluster ID array, shape (N,).
+                            ``None`` until ``attach_clusters()`` populates it.
+        n_samples:          Vocabulary size N that was projected.
+        seed:               Random seed used (for reproducibility checks).
     """
 
     coords_2d: np.ndarray
@@ -85,20 +88,21 @@ class ProjectionResult:
     seed: int
 
 
-# ---------- メインクラス ----------
+# ---------- Main class ----------
 
 
 class Projector:
-    """埋め込みベクトルを PCA または UMAP で 2D に投影するクラス。
+    """Projects embedding vectors into 2D using PCA or UMAP.
 
-    1インスタンス = 1手法 の設計。
-    手法を変える場合は別インスタンスを生成する。
+    One instance handles one method. To switch methods, create a new
+    instance.
 
-    乱数シードは初期化時に固定し、同一データ・同一シードで完全再現を保証する。
+    The random seed is fixed at initialization, guaranteeing full
+    reproducibility for the same data and seed.
 
     Attributes:
-        _method: 投影手法名（"pca" または "umap"）。
-        _seed:   乱数シード。
+        _method: Projection method name (``"pca"`` or ``"umap"``).
+        _seed:   Random seed.
     """
 
     def __init__(
@@ -106,16 +110,15 @@ class Projector:
         method: str = DEFAULT_METHOD,
         seed: int = DEFAULT_SEED,
     ) -> None:
-        """Projector を初期化する。
+        """Initialize the Projector.
 
         Args:
-            method: 投影手法（"pca" または "umap"）。デフォルト: "pca"。
-            seed:   乱数シード（デフォルト: 42）。再現性のために固定する。
+            method: Projection method (``"pca"`` or ``"umap"``). Default: ``"pca"``.
+            seed:   Random seed (default: 42). Fixed for reproducibility.
 
         Raises:
-            InvalidMethodError: method が "pca" / "umap" 以外の場合。
-            TypeError:          method が str でない場合。
-                                seed が int でない場合。
+            InvalidMethodError: If ``method`` is anything other than ``"pca"`` / ``"umap"``.
+            TypeError:          If ``method`` is not str, or ``seed`` is not int.
         """
         if not isinstance(method, str):
             raise TypeError(
@@ -142,27 +145,28 @@ class Projector:
             self._seed,
         )
 
-    # ---------- 公開 API ----------
+    # ---------- Public API ----------
 
     def fit_transform(self, vectors: np.ndarray) -> ProjectionResult:
-        """埋め込み行列を 2D 座標に変換する。
+        """Project an embedding matrix into 2D coordinates.
 
-        PCA の場合:
-            Z = X · V^T  （V は上位 2 主成分）
-            主成分寄与率を explained_variance に格納する。
+        For PCA:
+            Z = X · V^T  (V is the top-2 principal components)
+            Component contribution rates are stored in ``explained_variance``.
 
-        UMAP の場合:
-            局所的な近傍グラフを構築し、低次元に射影する。
-            explained_variance は [] となる（非線形手法のため定義なし）。
+        For UMAP:
+            Builds a local neighborhood graph and projects to low dimensions.
+            ``explained_variance`` is ``[]`` (undefined for non-linear methods).
 
         Args:
-            vectors: 埋め込み行列。shape (N, D)。dtype は float32 推奨。
+            vectors: Embedding matrix, shape (N, D). float32 dtype recommended.
 
         Returns:
-            ProjectionResult: 2D 座標・寄与率・手法名等を含む結果オブジェクト。
+            ProjectionResult: Object containing 2D coordinates, contribution
+            rates, the method name, and so on.
 
         Raises:
-            InvalidVectorError: vectors が np.ndarray でない、または ndim != 2 の場合。
+            InvalidVectorError: If ``vectors`` is not an ndarray, or ``ndim != 2``.
         """
         self._validate_inputs(vectors)
 
@@ -193,23 +197,24 @@ class Projector:
         result: ProjectionResult,
         cluster_labels: np.ndarray,
     ) -> ProjectionResult:
-        """既存の ProjectionResult にクラスタラベルを付与して返す。
+        """Return a new ProjectionResult with cluster labels attached.
 
-        元の result は変更せず、cluster_labels を差し替えた新しい
-        ProjectionResult を返す（イミュータブルな操作）。
+        The original ``result`` is not mutated. A new ``ProjectionResult``
+        with ``cluster_labels`` replaced is returned (immutable operation).
 
         Args:
-            result:         fit_transform() が返した ProjectionResult。
-            cluster_labels: 各単語のクラスタID 配列。shape (N,)。
-                            KMeansClusterer.get_labels() の出力を渡す。
+            result:         The ``ProjectionResult`` returned by ``fit_transform()``.
+            cluster_labels: Cluster ID array for each word, shape (N,).
+                            Pass the output of ``KMeansClusterer.get_labels()``.
 
         Returns:
-            ProjectionResult: cluster_labels が付与された新しい結果オブジェクト。
+            ProjectionResult: A new result object with ``cluster_labels`` attached.
 
         Raises:
-            TypeError:         result が ProjectionResult でない場合。
-                               cluster_labels が np.ndarray でない場合。
-            InvalidVectorError: cluster_labels の長さが result.n_samples と一致しない場合。
+            TypeError:          If ``result`` is not a ``ProjectionResult``,
+                                or ``cluster_labels`` is not an ndarray.
+            InvalidVectorError: If ``cluster_labels`` length does not match
+                                ``result.n_samples``.
         """
         if not isinstance(result, ProjectionResult):
             raise TypeError(
@@ -242,23 +247,23 @@ class Projector:
             seed=result.seed,
         )
 
-    # ---------- 手法別の投影処理（private）----------
+    # ---------- Per-method projection (private) ----------
 
     def _fit_pca(self, vectors: np.ndarray) -> ProjectionResult:
-        """PCA で 2D 投影を実行する。
+        """Run a 2D projection with PCA.
 
-        数式:
+        Formula:
             Z = X · V^T
-            寄与率_i = λ_i / Σ_j λ_j   （λ は固有値）
+            contribution_i = λ_i / Σ_j λ_j   (λ are eigenvalues)
 
-        sklearn.decomposition.PCA を使用。
-        random_state に seed を渡すことで再現性を保証する。
+        Uses ``sklearn.decomposition.PCA``. Passing ``seed`` as
+        ``random_state`` guarantees reproducibility.
 
         Args:
-            vectors: 埋め込み行列。shape (N, D)。
+            vectors: Embedding matrix, shape (N, D).
 
         Returns:
-            ProjectionResult: 2D 座標と主成分寄与率を含む結果。
+            ProjectionResult: Result containing 2D coordinates and principal-component contribution rates.
         """
         pca = PCA(n_components=2, random_state=self._seed)
         coords: np.ndarray = pca.fit_transform(vectors)
@@ -281,18 +286,20 @@ class Projector:
         )
 
     def _fit_umap(self, vectors: np.ndarray) -> ProjectionResult:
-        """UMAP で 2D 投影を実行する。
+        """Run a 2D projection with UMAP.
 
-        UMAP は局所的な近傍構造を保ちながら低次元に射影する非線形手法。
-        PCA と異なり explained_variance の概念がないため、空リストを格納する。
+        UMAP is a non-linear method that preserves local neighborhood
+        structure while projecting to lower dimensions. Unlike PCA, it
+        has no notion of explained variance, so an empty list is stored.
 
-        random_state に seed を渡すことで再現性を保証する。
+        Passing ``seed`` as ``random_state`` guarantees reproducibility.
 
         Args:
-            vectors: 埋め込み行列。shape (N, D)。
+            vectors: Embedding matrix, shape (N, D).
 
         Returns:
-            ProjectionResult: 2D 座標を含む結果（explained_variance は []）。
+            ProjectionResult: Result containing 2D coordinates
+            (``explained_variance`` is ``[]``).
         """
         reducer = UMAP(n_components=2, random_state=self._seed)
         coords: np.ndarray = reducer.fit_transform(vectors)
@@ -308,18 +315,19 @@ class Projector:
             seed=self._seed,
         )
 
-    # ---------- バリデーション ----------
+    # ---------- Validation ----------
 
     def _validate_inputs(self, vectors: np.ndarray) -> None:
-        """fit_transform() の入力を検証する。
+        """Validate the input to ``fit_transform()``.
 
         Args:
-            vectors: 検証対象の埋め込み行列。
+            vectors: Embedding matrix to validate.
 
         Raises:
-            InvalidVectorError: vectors が np.ndarray でない場合。
-            InvalidVectorError: vectors の ndim が 2 でない場合。
-            InvalidVectorError: vectors の行数が 2 未満の場合（PCA の最低要件）。
+            InvalidVectorError: If ``vectors`` is not an ndarray.
+            InvalidVectorError: If ``vectors.ndim`` is not 2.
+            InvalidVectorError: If ``vectors`` has fewer than 2 rows
+                                (PCA's minimum requirement).
         """
         if not isinstance(vectors, np.ndarray):
             raise InvalidVectorError(
