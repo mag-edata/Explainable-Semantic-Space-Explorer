@@ -177,30 +177,30 @@ class SimilarityEngine:
         """
         if not isinstance(vectors, np.ndarray):
             raise TypeError(
-                f"vectors は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(vectors)}"
+                f"vectors must be of type np.ndarray. "
+                f"Received type: {type(vectors)}"
             )
         if not isinstance(vocab, dict):
             raise TypeError(
-                f"vocab は dict 型である必要があります。"
-                f"受け取った型: {type(vocab)}"
+                f"vocab must be of type dict. "
+                f"Received type: {type(vocab)}"
             )
         if not isinstance(pos_tags, np.ndarray):
             raise TypeError(
-                f"pos_tags は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(pos_tags)}"
+                f"pos_tags must be of type np.ndarray. "
+                f"Received type: {type(pos_tags)}"
             )
         if not isinstance(metrics, DistanceMetrics):
             raise TypeError(
-                f"metrics は DistanceMetrics 型である必要があります。"
-                f"受け取った型: {type(metrics)}"
+                f"metrics must be of type DistanceMetrics. "
+                f"Received type: {type(metrics)}"
             )
 
         n_vocab: int = len(vocab)
         if vectors.shape[0] != n_vocab:
             raise ValueError(
-                f"vectors の行数 ({vectors.shape[0]}) と "
-                f"vocab のサイズ ({n_vocab}) が一致しません"
+                f"vectors row count ({vectors.shape[0]}) does not match "
+                f"vocab size ({n_vocab})"
             )
 
         self._vectors: np.ndarray = vectors
@@ -215,7 +215,7 @@ class SimilarityEngine:
             self._index_to_word[idx] = word
 
         logger.info(
-            "SimilarityEngine 初期化完了: n_vocab=%d, dim=%d",
+            "SimilarityEngine initialized: n_vocab=%d, dim=%d",
             self._n_vocab,
             self._vectors.shape[1],
         )
@@ -250,7 +250,7 @@ class SimilarityEngine:
         query_vec: np.ndarray = self._vectors[query_idx]
 
         logger.debug(
-            "search 開始: query=%s (idx=%d), top_k=%d, pos_filter=%s",
+            "search started: query=%s (idx=%d), top_k=%d, pos_filter=%s",
             query_word, query_idx, top_k, pos_filter,
         )
 
@@ -259,7 +259,7 @@ class SimilarityEngine:
         if pos_filter is not None:
             results = [r for r in results if r.pos_tag == pos_filter]
             logger.debug(
-                "品詞フィルタ適用: pos_filter=%s -> %d 件", pos_filter, len(results)
+                "POS filter applied: pos_filter=%s -> %d entries", pos_filter, len(results)
             )
 
         return self._assign_pos_ranks(results)
@@ -291,8 +291,8 @@ class SimilarityEngine:
         """
         if not isinstance(other, SimilarityEngine):
             raise TypeError(
-                f"other は SimilarityEngine 型である必要があります。"
-                f"受け取った型: {type(other)}"
+                f"other must be of type SimilarityEngine. "
+                f"Received type: {type(other)}"
             )
         self._validate_top_k(top_k)
 
@@ -324,7 +324,7 @@ class SimilarityEngine:
         }
 
         logger.info(
-            "compare 完了: query=%s, 共通=%d語, static固有=%d語, 文脈固有=%d語",
+            "compare done: query=%s, common=%d words, static-only=%d words, contextual-only=%d words",
             query_word, len(common_words), len(static_only), len(contextual_only),
         )
 
@@ -394,7 +394,7 @@ class SimilarityEngine:
         )
 
         logger.debug(
-            "距離分布: query=%s, mean=%.4f, std=%.4f, top1=%.4f, z_score=%.4f",
+            "Distance distribution: query=%s, mean=%.4f, std=%.4f, top1=%.4f, z_score=%.4f",
             query_word, mean_sim, std_sim, top1_sim, z_score,
         )
 
@@ -422,8 +422,8 @@ class SimilarityEngine:
         index: int | None = self._vocab.get(word)
         if index is None:
             raise UnknownWordError(
-                f"'{word}' は語彙に存在しません。"
-                f"（語彙サイズ: {self._n_vocab}）"
+                f"'{word}' is not present in the vocabulary. "
+                f"(vocabulary size: {self._n_vocab})"
             )
         return index
 
@@ -586,5 +586,5 @@ class SimilarityEngine:
         """
         if top_k < 1:
             raise InvalidTopKError(
-                f"top_k は 1 以上である必要があります。受け取った値: {top_k}"
+                f"top_k must be at least 1. Received: {top_k}"
             )

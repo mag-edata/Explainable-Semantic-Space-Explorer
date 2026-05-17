@@ -56,6 +56,6 @@ if __name__ == "__main__":
     with VOCAB_JSON.open("w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 
-    print("統合語彙を生成しました")
-    print(f"- 出力先: {VOCAB_JSON}")
-    print(f"- 件数: {len(vocab)}")
+    print("Merged vocabulary generated")
+    print(f"- output: {VOCAB_JSON}")
+    print(f"- count: {len(vocab)}")

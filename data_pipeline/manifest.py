@@ -52,11 +52,11 @@ def gen_manifest() -> dict:
     """
     if not STATIC_VECTORS.exists():
         raise FileNotFoundError(
-            f"static_vectors が見つかりません: {STATIC_VECTORS}"
+            f"static_vectors not found: {STATIC_VECTORS}"
         )
     if not CONTEXTUAL_VECTORS.exists():
         raise FileNotFoundError(
-            f"contextual_vectors が見つかりません: {CONTEXTUAL_VECTORS}"
+            f"contextual_vectors not found: {CONTEXTUAL_VECTORS}"
         )
 
     static_arr = np.load(STATIC_VECTORS)
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     with MANIFEST_JSON.open("w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
-    print(f"manifest.json を生成しました: {MANIFEST_JSON}")
+    print(f"manifest.json generated: {MANIFEST_JSON}")
     print(f"- static_vectors:     shape={manifest['static_vectors']['shape']}, "
           f"dtype={manifest['static_vectors']['dtype']}")
     print(f"- contextual_vectors: shape={manifest['contextual_vectors']['shape']}, "

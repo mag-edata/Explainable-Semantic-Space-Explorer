@@ -106,7 +106,7 @@ class EmbeddingLoader:
         """
         if not data_root.exists():
             raise FileNotFoundError(
-                f"data ディレクトリが見つかりません: {data_root}"
+                f"data directory not found: {data_root}"
             )
 
         self.data_root: Path = data_root
@@ -120,7 +120,7 @@ class EmbeddingLoader:
         self.pos: np.ndarray | None = None
         self.manifest: dict | None = None
 
-        logger.info("EmbeddingLoader 初期化: data_root=%s", data_root)
+        logger.info("EmbeddingLoader initialized: data_root=%s", data_root)
 
     def load_all(self) -> None:
         """Load every asset file and run the index alignment checks.
@@ -137,13 +137,13 @@ class EmbeddingLoader:
                                     across files.
             ManifestViolationError: If actual data deviates from the manifest.
         """
-        logger.info("資産の読み込みを開始します")
+        logger.info("Starting asset load")
         self._load_manifest()
         self._load_embeddings()
         self._load_metadata()
         self._validate()
         logger.info(
-            "全資産の読み込み完了: n_vocab=%d", len(self.vocab)
+            "All assets loaded: n_vocab=%d", len(self.vocab)
         )
 
     # -----------------------------------------------------------------------
@@ -159,13 +159,13 @@ class EmbeddingLoader:
         manifest_path = self.data_root / "manifest.json"
         if not manifest_path.exists():
             raise FileNotFoundError(
-                f"manifest.json が見つかりません: {manifest_path}"
+                f"manifest.json not found: {manifest_path}"
             )
 
         with open(manifest_path, "r", encoding="utf-8") as f:
             self.manifest = json.load(f)
 
-        logger.debug("manifest.json 読み込み完了: %s", manifest_path)
+        logger.debug("manifest.json loaded: %s", manifest_path)
 
     def _load_embeddings(self) -> None:
         """Load the embedding vector files (``.npy``).
@@ -179,14 +179,14 @@ class EmbeddingLoader:
         for path in (static_path, contextual_path):
             if not path.exists():
                 raise FileNotFoundError(
-                    f"埋め込みファイルが見つかりません: {path}"
+                    f"Embedding file not found: {path}"
                 )
 
         self.static_vectors = np.load(static_path)
         self.contextual_vectors = np.load(contextual_path)
 
         logger.debug(
-            "埋め込み読み込み完了: static=%s, contextual=%s",
+            "Embeddings loaded: static=%s, contextual=%s",
             self.static_vectors.shape,
             self.contextual_vectors.shape,
         )
@@ -207,7 +207,7 @@ class EmbeddingLoader:
         for path in (vocab_path, pos_path):
             if not path.exists():
                 raise FileNotFoundError(
-                    f"メタデータファイルが見つかりません: {path}"
+                    f"Metadata file not found: {path}"
                 )
 
         with open(vocab_path, "r", encoding="utf-8") as f:
@@ -219,14 +219,14 @@ class EmbeddingLoader:
         if isinstance(raw, dict) and "vocab" in raw and isinstance(raw["vocab"], list):
             word_list = raw["vocab"]
             self.vocab = {word: idx for idx, word in enumerate(word_list)}
-            logger.debug("vocab.json をリスト形式から辞書形式に変換しました（件数=%d）", len(self.vocab))
+            logger.debug("Converted vocab.json from list form to dict form (count=%d)", len(self.vocab))
         else:
             self.vocab = raw
 
         self.pos = np.load(pos_path)
 
         logger.debug(
-            "メタデータ読み込み完了: vocab_size=%d, pos_shape=%s",
+            "Metadata loaded: vocab_size=%d, pos_shape=%s",
             len(self.vocab),
             self.pos.shape,
         )
@@ -253,7 +253,7 @@ class EmbeddingLoader:
             self.static_vectors, self.contextual_vectors, self.vocab, self.pos
         )):
             raise EmbeddingLoaderError(
-                "load_all() を実行する前に _validate() が呼ばれました"
+                "_validate() was called before load_all() was executed"
             )
 
         vocab_size: int = len(self.vocab)
@@ -267,8 +267,8 @@ class EmbeddingLoader:
         for actual_n, name in checks:
             if actual_n != vocab_size:
                 raise IndexAlignmentError(
-                    f"インデックス不整合: {name} の行数={actual_n} に対し "
-                    f"vocab の件数={vocab_size} が一致しません"
+                    f"Index misalignment: {name} row count={actual_n} does not match "
+                    f"vocab size={vocab_size}"
                 )
 
         # 3. Compare shape / dtype against manifest.json
@@ -281,19 +281,19 @@ class EmbeddingLoader:
 
         if len(unique_indices) != vocab_size:
             raise IndexAlignmentError(
-                f"vocab にインデックス値の重複があります: "
-                f"ユニーク数={len(unique_indices)}, 語彙数={vocab_size}"
+                f"Duplicate index values in vocab: "
+                f"unique_count={len(unique_indices)}, vocab_size={vocab_size}"
             )
 
         expected_indices = set(range(vocab_size))
         if unique_indices != expected_indices:
             missing = expected_indices - unique_indices
             raise IndexAlignmentError(
-                f"vocab のインデックスが [0, N-1] の連続整数になっていません。"
-                f"欠落インデックスの例: {sorted(missing)[:5]}"
+                f"vocab indices are not contiguous integers in [0, N-1]. "
+                f"Example missing indices: {sorted(missing)[:5]}"
             )
 
-        logger.info("整合チェック: 全項目通過 (n_vocab=%d)", vocab_size)
+        logger.info("Alignment check: all items passed (n_vocab=%d)", vocab_size)
 
     def _validate_against_manifest(
         self,
@@ -310,7 +310,7 @@ class EmbeddingLoader:
             ManifestViolationError: If shape or dtype does not match the manifest.
         """
         if key not in self.manifest:
-            logger.warning("manifest に '%s' キーが存在しません。スキップします", key)
+            logger.warning("manifest does not contain the '%s' key. Skipping.", key)
             return
 
         spec = self.manifest[key]
@@ -319,19 +319,19 @@ class EmbeddingLoader:
         expected_shape: tuple[int, ...] = tuple(spec["shape"])
         if tuple(array.shape) != expected_shape:
             raise ManifestViolationError(
-                f"{key}: shape 不一致。"
-                f"manifest={expected_shape}, 実データ={tuple(array.shape)}"
+                f"{key}: shape mismatch. "
+                f"manifest={expected_shape}, actual={tuple(array.shape)}"
             )
 
         # dtype check
         expected_dtype: str = spec["dtype"]
         if array.dtype != np.dtype(expected_dtype):
             raise ManifestViolationError(
-                f"{key}: dtype 不一致。"
-                f"manifest={expected_dtype}, 実データ={array.dtype}"
+                f"{key}: dtype mismatch. "
+                f"manifest={expected_dtype}, actual={array.dtype}"
             )
 
         logger.debug(
-            "manifest 照合通過: %s shape=%s dtype=%s",
+            "manifest check passed: %s shape=%s dtype=%s",
             key, array.shape, array.dtype,
         )

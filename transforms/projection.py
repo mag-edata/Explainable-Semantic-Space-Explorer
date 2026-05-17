@@ -122,25 +122,25 @@ class Projector:
         """
         if not isinstance(method, str):
             raise TypeError(
-                f"method は str 型である必要があります。"
-                f"受け取った型: {type(method)}"
+                f"method must be of type str. "
+                f"Received type: {type(method)}"
             )
         if not isinstance(seed, int):
             raise TypeError(
-                f"seed は int 型である必要があります。"
-                f"受け取った型: {type(seed)}"
+                f"seed must be of type int. "
+                f"Received type: {type(seed)}"
             )
         if method not in SUPPORTED_METHODS:
             raise InvalidMethodError(
-                f"method は {SUPPORTED_METHODS} のいずれかである必要があります。"
-                f"指定値: '{method}'"
+                f"method must be one of {SUPPORTED_METHODS}. "
+                f"Received: '{method}'"
             )
 
         self._method: str = method
         self._seed: int = seed
 
         logger.info(
-            "Projector 初期化完了: method=%s, seed=%d",
+            "Projector initialized: method=%s, seed=%d",
             self._method,
             self._seed,
         )
@@ -172,7 +172,7 @@ class Projector:
 
         n_samples: int = vectors.shape[0]
         logger.debug(
-            "fit_transform 開始: method=%s, n_samples=%d, dim=%d",
+            "fit_transform started: method=%s, n_samples=%d, dim=%d",
             self._method,
             n_samples,
             vectors.shape[1],
@@ -184,7 +184,7 @@ class Projector:
             result = self._fit_umap(vectors)
 
         logger.info(
-            "fit_transform 完了: method=%s, n_samples=%d, coords_2d.shape=%s",
+            "fit_transform done: method=%s, n_samples=%d, coords_2d.shape=%s",
             self._method,
             n_samples,
             result.coords_2d.shape,
@@ -218,18 +218,18 @@ class Projector:
         """
         if not isinstance(result, ProjectionResult):
             raise TypeError(
-                f"result は ProjectionResult 型である必要があります。"
-                f"受け取った型: {type(result)}"
+                f"result must be of type ProjectionResult. "
+                f"Received type: {type(result)}"
             )
         if not isinstance(cluster_labels, np.ndarray):
             raise TypeError(
-                f"cluster_labels は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(cluster_labels)}"
+                f"cluster_labels must be of type np.ndarray. "
+                f"Received type: {type(cluster_labels)}"
             )
         if cluster_labels.shape[0] != result.n_samples:
             raise InvalidVectorError(
-                f"cluster_labels の長さ ({cluster_labels.shape[0]}) が "
-                f"result.n_samples ({result.n_samples}) と一致しません。"
+                f"cluster_labels length ({cluster_labels.shape[0]}) does not match "
+                f"result.n_samples ({result.n_samples})."
             )
 
         logger.debug(
@@ -271,7 +271,7 @@ class Projector:
         explained: List[float] = pca.explained_variance_ratio_.tolist()
 
         logger.debug(
-            "PCA 完了: 第1主成分 寄与率=%.4f, 第2主成分 寄与率=%.4f",
+            "PCA done: PC1 contribution=%.4f, PC2 contribution=%.4f",
             explained[0],
             explained[1],
         )
@@ -304,7 +304,7 @@ class Projector:
         reducer = UMAP(n_components=2, random_state=self._seed)
         coords: np.ndarray = reducer.fit_transform(vectors)
 
-        logger.debug("UMAP 完了: coords_2d.shape=%s", coords.shape)
+        logger.debug("UMAP done: coords_2d.shape=%s", coords.shape)
 
         return ProjectionResult(
             coords_2d=coords,
@@ -331,16 +331,16 @@ class Projector:
         """
         if not isinstance(vectors, np.ndarray):
             raise InvalidVectorError(
-                f"vectors は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(vectors)}"
+                f"vectors must be of type np.ndarray. "
+                f"Received type: {type(vectors)}"
             )
         if vectors.ndim != 2:
             raise InvalidVectorError(
-                f"vectors は 2 次元配列（shape (N, D)）である必要があります。"
-                f"受け取った次元数: {vectors.ndim}"
+                f"vectors must be a 2-D array with shape (N, D). "
+                f"Received ndim: {vectors.ndim}"
             )
         if vectors.shape[0] < 2:
             raise InvalidVectorError(
-                f"投影には 2 サンプル以上必要です。"
-                f"受け取った行数: {vectors.shape[0]}"
+                f"Projection requires at least 2 samples. "
+                f"Received row count: {vectors.shape[0]}"
             )

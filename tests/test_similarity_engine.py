@@ -187,7 +187,7 @@ class TestGetDistanceDistribution(unittest.TestCase):
         """Every required key is present."""
         result = self.engine.get_distance_distribution("word0")
         for key in ("query_word", "mean", "std", "top1_similarity", "z_score", "histogram_data"):
-            self.assertIn(key, result, msg=f"キー '{key}' が存在しません")
+            self.assertIn(key, result, msg=f"key '{key}' is missing")
 
     def test_query_word_field(self) -> None:
         """``query_word`` matches the input query."""

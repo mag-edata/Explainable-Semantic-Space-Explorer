@@ -240,7 +240,7 @@ class TestAssignPosRanks(unittest.TestCase):
         for r in ranked:
             first_per_pos.setdefault(r.pos_tag, r.pos_rank)
         for pos_tag, first_rank in first_per_pos.items():
-            self.assertEqual(first_rank, 1, msg=f"pos_tag={pos_tag} の先頭順位が 1 でない")
+            self.assertEqual(first_rank, 1, msg=f"first rank for pos_tag={pos_tag} is not 1")
 
     def test_ranks_increase_within_each_pos(self) -> None:
         """Within each POS, ``pos_rank`` increases as 1, 2, 3, …"""
@@ -252,7 +252,7 @@ class TestAssignPosRanks(unittest.TestCase):
         for pos_tag, ranks in per_pos.items():
             self.assertEqual(
                 ranks, list(range(1, len(ranks) + 1)),
-                msg=f"pos_tag={pos_tag} の順位が連続していない",
+                msg=f"ranks for pos_tag={pos_tag} are not contiguous",
             )
 
     def test_preserves_original_order(self) -> None:

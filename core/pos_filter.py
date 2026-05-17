@@ -82,19 +82,19 @@ class POSFilter:
             UnknownPOSTagError: If the requested POS is not in ``results``.
         """
         if not pos_tag:
-            raise ValueError("pos_tag は空文字にできません")
+            raise ValueError("pos_tag cannot be an empty string")
 
         filtered = [r for r in results if r.pos_tag == pos_tag]
 
         if not filtered:
             available = sorted({r.pos_tag for r in results})
             raise UnknownPOSTagError(
-                f"品詞 '{pos_tag}' の結果が見つかりません。"
-                f"利用可能な品詞: {available}"
+                f"No results found for POS '{pos_tag}'. "
+                f"Available POS tags: {available}"
             )
 
         logger.debug(
-            "filter: pos_tag=%s, %d / %d 件",
+            "filter: pos_tag=%s, %d / %d entries",
             pos_tag, len(filtered), len(results),
         )
         return filtered
@@ -122,7 +122,7 @@ class POSFilter:
             groups[result.pos_tag].append(result)
 
         logger.debug(
-            "group_by_pos: %d 品詞グループ: %s",
+            "group_by_pos: %d POS groups: %s",
             len(groups), list(groups.keys()),
         )
         return dict(groups)
@@ -177,9 +177,9 @@ class POSFilter:
             ValueError: If ``results`` is empty, or ``query_pos`` is an empty string.
         """
         if not results:
-            raise ValueError("results が空です")
+            raise ValueError("results is empty")
         if not query_pos:
-            raise ValueError("query_pos は空文字にできません")
+            raise ValueError("query_pos cannot be an empty string")
 
         different_count = sum(1 for r in results if r.pos_tag != query_pos)
         rate = different_count / len(results)
@@ -236,7 +236,7 @@ class POSFilter:
             ValueError: If ``n`` is less than 1.
         """
         if n < 1:
-            raise ValueError(f"n は 1 以上である必要があります。受け取った値: {n}")
+            raise ValueError(f"n must be at least 1. Received: {n}")
 
         dist = POSFilter.pos_distribution(results)
         return list(dist.keys())[:n]

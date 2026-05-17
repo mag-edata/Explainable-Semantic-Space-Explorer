@@ -49,7 +49,7 @@ def load_vocab() -> List[str]:
         data = json.load(f)
 
     if "vocab" not in data:
-        raise ValueError("vocab.json のフォーマットが不正です")
+        raise ValueError("vocab.json has an invalid format")
 
     return data["vocab"]
 
@@ -86,10 +86,10 @@ def export_contextual_vectors() -> None:
     CONTEXTUAL_VECTORS.parent.mkdir(parents=True, exist_ok=True)
     np.save(CONTEXTUAL_VECTORS, vectors)
 
-    print("文脈埋め込みベクトル行列の書き出しが完了しました")
-    print(f"- 出力先: {CONTEXTUAL_VECTORS}")
-    print(f"- 件数: {len(vocab)}")
-    print(f"- 次元: {vectors.shape[1]}")
+    print("Contextual embedding vector matrix export complete")
+    print(f"- output: {CONTEXTUAL_VECTORS}")
+    print(f"- count: {len(vocab)}")
+    print(f"- dim: {vectors.shape[1]}")
 
 
 if __name__ == "__main__":

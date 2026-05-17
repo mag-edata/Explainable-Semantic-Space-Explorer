@@ -122,23 +122,23 @@ class KMeansClusterer:
         """
         if not isinstance(n_clusters, int):
             raise TypeError(
-                f"n_clusters は int 型である必要があります。"
-                f"受け取った型: {type(n_clusters)}"
+                f"n_clusters must be of type int. "
+                f"Received type: {type(n_clusters)}"
             )
         if not isinstance(seed, int):
             raise TypeError(
-                f"seed は int 型である必要があります。"
-                f"受け取った型: {type(seed)}"
+                f"seed must be of type int. "
+                f"Received type: {type(seed)}"
             )
         if not isinstance(max_iter, int):
             raise TypeError(
-                f"max_iter は int 型である必要があります。"
-                f"受け取った型: {type(max_iter)}"
+                f"max_iter must be of type int. "
+                f"Received type: {type(max_iter)}"
             )
         if n_clusters < 1:
             raise InvalidClusterCountError(
-                f"n_clusters は 1 以上である必要があります。"
-                f"指定値: {n_clusters}"
+                f"n_clusters must be at least 1. "
+                f"Received: {n_clusters}"
             )
 
         self._n_clusters: int = n_clusters
@@ -147,7 +147,7 @@ class KMeansClusterer:
         self._result: ClusterResult | None = None
 
         logger.info(
-            "KMeansClusterer 初期化完了: n_clusters=%d, seed=%d, max_iter=%d",
+            "KMeansClusterer initialized: n_clusters=%d, seed=%d, max_iter=%d",
             self._n_clusters,
             self._seed,
             self._max_iter,
@@ -183,7 +183,7 @@ class KMeansClusterer:
 
         n_samples: int = vectors.shape[0]
         logger.debug(
-            "fit 開始: n_samples=%d, dim=%d, n_clusters=%d",
+            "fit started: n_samples=%d, dim=%d, n_clusters=%d",
             n_samples,
             vectors.shape[1],
             self._n_clusters,
@@ -207,7 +207,7 @@ class KMeansClusterer:
         )
 
         logger.info(
-            "fit 完了: n_samples=%d, n_clusters=%d, inertia=%.6f",
+            "fit done: n_samples=%d, n_clusters=%d, inertia=%.6f",
             n_samples,
             self._n_clusters,
             self._result.inertia,
@@ -226,7 +226,7 @@ class KMeansClusterer:
         """
         if self._result is None:
             raise NotFittedError(
-                "get_labels() は fit() を呼び出した後にのみ使用できます。"
+                "get_labels() can only be used after fit() has been called."
             )
         return self._result.labels
 
@@ -242,7 +242,7 @@ class KMeansClusterer:
         """
         if self._result is None:
             raise NotFittedError(
-                "get_result() は fit() を呼び出した後にのみ使用できます。"
+                "get_result() can only be used after fit() has been called."
             )
         return self._result
 
@@ -300,7 +300,7 @@ class KMeansClusterer:
         )
 
         logger.debug(
-            "_normalize_rows: %d / %d 行を正規化（ゼロベクトル %d 行をスキップ）",
+            "_normalize_rows: normalized %d / %d rows (skipped %d zero-vector rows)",
             int(valid_mask.sum()),
             matrix.shape[0],
             int((~valid_mask).sum()),
@@ -323,18 +323,18 @@ class KMeansClusterer:
         """
         if not isinstance(vectors, np.ndarray):
             raise UnfitVectorError(
-                f"vectors は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(vectors)}"
+                f"vectors must be of type np.ndarray. "
+                f"Received type: {type(vectors)}"
             )
         if vectors.ndim != 2:
             raise UnfitVectorError(
-                f"vectors は 2 次元配列（shape (N, D)）である必要があります。"
-                f"受け取った次元数: {vectors.ndim}"
+                f"vectors must be a 2-D array with shape (N, D). "
+                f"Received ndim: {vectors.ndim}"
             )
 
         n_samples: int = vectors.shape[0]
         if self._n_clusters > n_samples:
             raise InvalidClusterCountError(
-                f"n_clusters ({self._n_clusters}) が語彙数 N ({n_samples}) を超えています。"
-                f"n_clusters ≤ N である必要があります。"
+                f"n_clusters ({self._n_clusters}) exceeds vocabulary size N ({n_samples}). "
+                f"n_clusters must be ≤ N."
             )

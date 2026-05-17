@@ -51,5 +51,5 @@ def gen_brown(min_freq: int = 10) -> set[str]:
 
 if __name__ == "__main__":
     vocab = gen_brown()
-    print("Brownコーパスから語彙を生成しました")
-    print(f"- 件数: {len(vocab)}")
+    print("Generated vocabulary from the Brown corpus")
+    print(f"- count: {len(vocab)}")

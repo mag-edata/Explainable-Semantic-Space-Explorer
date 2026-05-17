@@ -169,12 +169,12 @@ class Analyzer:
                          "z_score", "histogram_data"}
         missing = required_keys - distribution.keys()
         if missing:
-            raise KeyError(f"distribution に必須キーがありません: {missing}")
+            raise KeyError(f"distribution is missing required keys: {missing}")
 
         data: np.ndarray = np.array(distribution["histogram_data"])
         if data.size == 0:
             raise InsufficientDataError(
-                "histogram_data が空です。統計計算ができません"
+                "histogram_data is empty; cannot compute statistics"
             )
 
         median: float = float(np.median(data))
@@ -222,11 +222,11 @@ class Analyzer:
         """
         if not data:
             raise InsufficientDataError(
-                "data が空です。ヒストグラムを作成できません"
+                "data is empty; cannot build a histogram"
             )
         if n_bins < 1:
             raise ValueError(
-                f"n_bins は 1 以上である必要があります。受け取った値: {n_bins}"
+                f"n_bins must be at least 1. Received: {n_bins}"
             )
 
         arr = np.array(data)
@@ -299,7 +299,7 @@ class Analyzer:
             })
 
         logger.debug(
-            "attach_z_scores: %d 件に Z-score を付与 (mean=%.4f, std=%.4f)",
+            "attach_z_scores: attached Z-score to %d entries (mean=%.4f, std=%.4f)",
             len(scored), mean, std,
         )
         return scored
@@ -380,9 +380,9 @@ class Analyzer:
             ValueError: If either ``results`` argument is empty.
         """
         if not static_results:
-            raise ValueError("static_results が空です")
+            raise ValueError("static_results is empty")
         if not contextual_results:
-            raise ValueError("contextual_results が空です")
+            raise ValueError("contextual_results is empty")
 
         static_words: set[str] = {r.word for r in static_results}
         contextual_words: set[str] = {r.word for r in contextual_results}

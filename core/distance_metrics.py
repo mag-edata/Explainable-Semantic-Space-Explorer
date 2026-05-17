@@ -100,13 +100,13 @@ class DistanceMetrics:
         """
         if not isinstance(vector, np.ndarray):
             raise TypeError(
-                f"vector は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(vector)}"
+                f"vector must be of type np.ndarray. "
+                f"Received type: {type(vector)}"
             )
         if vector.ndim != 1:
             raise VectorDimensionError(
-                f"vector は 1次元配列である必要があります。"
-                f"受け取った shape: {vector.shape}"
+                f"vector must be a 1-D array. "
+                f"Received shape: {vector.shape}"
             )
 
         # Self-rolled implementation that avoids np.linalg.norm.
@@ -147,7 +147,7 @@ class DistanceMetrics:
         # Zero-division guard: treat zero vectors as similarity 0.0
         if norm_a < _EPSILON or norm_b < _EPSILON:
             logger.debug(
-                "cosine_similarity: ゼロベクトル検出 (norm_a=%.2e, norm_b=%.2e) -> 0.0",
+                "cosine_similarity: zero vector detected (norm_a=%.2e, norm_b=%.2e) -> 0.0",
                 norm_a, norm_b,
             )
             return 0.0
@@ -216,7 +216,7 @@ class DistanceMetrics:
 
         if zero_mask.any():
             logger.debug(
-                "cosine_similarity_batch: ゼロ除算ガード適用 %d 件",
+                "cosine_similarity_batch: zero-division guard applied to %d entries",
                 int(zero_mask.sum()),
             )
 
@@ -298,18 +298,18 @@ def _validate_vector_pair(vec_a: np.ndarray, vec_b: np.ndarray) -> None:
     for name, vec in (("vec_a", vec_a), ("vec_b", vec_b)):
         if not isinstance(vec, np.ndarray):
             raise TypeError(
-                f"{name} は np.ndarray 型である必要があります。"
-                f"受け取った型: {type(vec)}"
+                f"{name} must be of type np.ndarray. "
+                f"Received type: {type(vec)}"
             )
         if vec.ndim != 1:
             raise VectorDimensionError(
-                f"{name} は 1次元配列である必要があります。"
-                f"受け取った shape: {vec.shape}"
+                f"{name} must be a 1-D array. "
+                f"Received shape: {vec.shape}"
             )
 
     if vec_a.shape != vec_b.shape:
         raise VectorDimensionError(
-            f"vec_a と vec_b の次元数が一致しません。"
+            f"vec_a and vec_b have mismatched dimensions. "
             f"vec_a: {vec_a.shape}, vec_b: {vec_b.shape}"
         )
 
@@ -327,26 +327,26 @@ def _validate_query_matrix(query: np.ndarray, matrix: np.ndarray) -> None:
     """
     if not isinstance(query, np.ndarray):
         raise TypeError(
-            f"query は np.ndarray 型である必要があります。"
-            f"受け取った型: {type(query)}"
+            f"query must be of type np.ndarray. "
+            f"Received type: {type(query)}"
         )
     if not isinstance(matrix, np.ndarray):
         raise TypeError(
-            f"matrix は np.ndarray 型である必要があります。"
-            f"受け取った型: {type(matrix)}"
+            f"matrix must be of type np.ndarray. "
+            f"Received type: {type(matrix)}"
         )
     if query.ndim != 1:
         raise VectorDimensionError(
-            f"query は 1次元配列である必要があります。"
-            f"受け取った shape: {query.shape}"
+            f"query must be a 1-D array. "
+            f"Received shape: {query.shape}"
         )
     if matrix.ndim != 2:
         raise VectorDimensionError(
-            f"matrix は 2次元配列である必要があります。"
-            f"受け取った shape: {matrix.shape}"
+            f"matrix must be a 2-D array. "
+            f"Received shape: {matrix.shape}"
         )
     if query.shape[0] != matrix.shape[1]:
         raise VectorDimensionError(
-            f"query の次元数と matrix の列数が一致しません。"
-            f"query: {query.shape[0]}, matrix 列数: {matrix.shape[1]}"
+            f"query dimension does not match the number of matrix columns. "
+            f"query: {query.shape[0]}, matrix columns: {matrix.shape[1]}"
         )
