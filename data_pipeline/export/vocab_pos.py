@@ -1,25 +1,23 @@
 """
 vocab_pos.py
 
-入力:
-    data/metadata/vocab.json
+Inputs:
+    ``data/metadata/vocab.json``
 
-出力:
-    data/metadata/vocab_pos.npy  shape=(N,)  dtype=<U_>
+Outputs:
+    ``data/metadata/vocab_pos.npy``  shape=(N,)  dtype=<U_>
 
-本モジュールは、
-vocab/merge.py により確定した統合語彙に対し、
-品詞(POS:Part-of-Speech)ラベルを付与し、
-語彙配列と完全にインデックス整合した
-coarse-grained POS配列をnumpy形式で保存する。
+This module assigns Part-of-Speech (POS) labels to the merged vocabulary
+finalized by ``vocab/merge.py`` and saves the coarse-grained POS array
+in NumPy format, with full index alignment to the vocabulary array.
 
-目的は、
-推論時に動的なPOSタグ付け処理を実行することなく、
-事前計算済みのPOS情報を用いて
-高速かつ一貫した品詞制約を適用可能とする設計を実現することである。
+The goal is a design where pre-computed POS information enables fast
+and consistent POS-based filtering at inference time, without running
+dynamic POS tagging at runtime.
 
-POS定義およびマッピング規則は本モジュール内に集約し、
-語彙構成や下流タスクにおける再現性を保証する設計とする。
+POS definitions and mapping rules are consolidated within this module,
+guaranteeing reproducibility for vocabulary composition and downstream
+tasks.
 """
 
 import json
@@ -31,12 +29,12 @@ from nltk import pos_tag
 
 from data_pipeline._common.nltk_setup import ensure_nltk_resource
 
-# ---------- 入出力パス（このスクリプト固有）----------
+# ---------- I/O paths (specific to this script) ----------
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
 VOCAB_JSON: Path = PROJECT_ROOT / "data" / "metadata" / "vocab.json"
 VOCAB_POS: Path = PROJECT_ROOT / "data" / "metadata" / "vocab_pos.npy"
 
-# ---------- POS マッピング ----------
+# ---------- POS mapping ----------
 POS_MAP = {
     # Noun
     "NN": "noun",
@@ -69,7 +67,7 @@ def load_vocab() -> List[str]:
     Returns
     -------
     List[str]
-        vocab/merge.py により確定したソート済み語彙リスト。
+        Sorted vocabulary list finalized by ``vocab/merge.py``.
     """
     with VOCAB_JSON.open("r", encoding="utf-8") as f:
         data = json.load(f)
@@ -84,18 +82,17 @@ def load_vocab() -> List[str]:
 
 def map_pos_tag(tag: str) -> str:
     """
-    Penn Treebank POSタグをcoarse-grained POSへ変換する。
+    Convert a Penn Treebank POS tag to a coarse-grained POS label.
 
     Parameters
     ----------
     tag : str
-        Penn Treebank形式のPOSタグ
+        POS tag in Penn Treebank format.
 
     Returns
     -------
     str
-        coarse-grained POSラベル。
-        以下のいずれかを返す:
+        Coarse-grained POS label. Returns one of:
         - "any"
         - "noun"
         - "verb"
@@ -107,22 +104,22 @@ def map_pos_tag(tag: str) -> str:
 
 def export_vocab_pos() -> None:
     """
-    統合語彙に対してPOSラベルを付与し、
-    インデックス整合したPOS配列を保存する。
+    Assign POS labels to the merged vocabulary and save an
+    index-aligned POS array.
 
-    保存物
+    Output
     --------
-    - VOCAB_POS : shape = (N,)
-        各要素はcoarse-grained POSラベル。
-        インデックスは vocab.json と完全一致する。
+    - VOCAB_POS: shape = (N,)
+        Each element is a coarse-grained POS label.
+        Indices match ``vocab.json`` exactly.
     """
     ensure_nltk_resource("taggers/averaged_perceptron_tagger_eng", "averaged_perceptron_tagger_eng")
 
     vocab = load_vocab()
 
-    # 単語単位で POS tagging を実行
+    # Run POS tagging per word
     tagged = pos_tag(vocab)
-    # coarse-grained POS へマッピング
+    # Map to coarse-grained POS labels
     pos_labels: List[str] = [map_pos_tag(tag) for _, tag in tagged]
 
     pos_array = np.array(pos_labels)

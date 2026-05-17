@@ -1,10 +1,11 @@
 """
 nltk_setup.py
 
-NLTK リソースをリポジトリ内 data/nltk_data/ に集約するためのユーティリティ。
+Utility for consolidating NLTK resources under the repository-local
+``data/nltk_data/`` directory.
 
-デフォルトの ~/nltk_data への分散を防ぎ、
-プロジェクト内で再現性のあるセットアップを保証する。
+Prevents resources from being scattered into the default
+``~/nltk_data`` location and guarantees a reproducible per-project setup.
 """
 
 from pathlib import Path
@@ -17,15 +18,15 @@ NLTK_DATA_DIR: Path = PROJECT_ROOT / "data" / "nltk_data"
 
 def ensure_nltk_resource(resource_path: str, package_name: str) -> None:
     """
-    NLTK リソースを data/nltk_data/ に確保する。
-    未取得の場合は自動ダウンロードする。
+    Ensure an NLTK resource is present under ``data/nltk_data/``.
+    Automatically downloads it if missing.
 
     Parameters
     ----------
     resource_path : str
-        nltk.data.find() に渡すパス（例: "corpora/brown"）。
+        Path passed to ``nltk.data.find()`` (for example, ``"corpora/brown"``).
     package_name : str
-        nltk.download() に渡すパッケージ名（例: "brown"）。
+        Package name passed to ``nltk.download()`` (for example, ``"brown"``).
     """
     NLTK_DATA_DIR.mkdir(parents=True, exist_ok=True)
 

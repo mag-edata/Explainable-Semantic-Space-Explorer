@@ -1,11 +1,13 @@
 """
 tokenizer.py
 
-本モジュールは、トークン正規化およびトークン化するための前処理関数を提供する。
+This module provides preprocessing functions for token normalization and
+tokenization.
 
-目的は、プロジェクト全体のトークン定義を一致させることであり、
-語彙生成・コーパス生成・モデル学習・推論等の段階において
-前処理の一貫性と再現性を保証する。
+The goal is to keep the token definition consistent across the entire
+project, guaranteeing consistency and reproducibility of preprocessing
+throughout vocabulary generation, corpus generation, model training,
+and inference.
 """
 
 from typing import Iterable, List, Optional
@@ -15,41 +17,42 @@ from data_pipeline._common.token_definition import TOKEN_CONSTRAINT_PATTERN, TOK
 
 def normalize_tokens(tokens: Iterable[str]) -> List[str]:
     """
-    既に分割済のトークン列を処理対象とする。
-    主に単語単位で提供されるテキストを想定する。
-    （例：NLTK Brown corpus）
+    Process an already-tokenized stream.
+    Designed for text that is provided as a word-level sequence
+    (for example, the NLTK Brown corpus).
 
     Parameters
     ----------
     tokens : Iterable[str]
-        分割済トークン列
+        Pre-tokenized stream.
 
     Returns
     -------
     List[str]
-        正規化・フィルタリング適用後のトークン列
+        Token stream after normalization and filtering.
     """
     return [w.lower() for w in tokens if TOKEN_CONSTRAINT_PATTERN.match(w)]
 
 
 def tokenize_text(text: str, vocab: Optional[set[str]] = None) -> List[str]:
     """
-    生テキストを処理対象とする。
-    主に文章単位で提供されるテキストを想定する。
-    （例：Hugging Face Datasets Simple Wikipedia）
+    Process raw text.
+    Designed for text that is provided at the sentence / passage level
+    (for example, Hugging Face Datasets' Simple Wikipedia).
 
     Parameters
     ----------
     text : str
-        生テキスト
+        Raw text.
     vocab : set[str], optional
-        使用可能とする語彙集合。
-        指定された場合、この集合に含まれるトークンのみを返す。
+        Allowed vocabulary set.
+        When provided, only tokens that belong to this set are returned.
 
     Returns
     -------
     List[str]
-        トークン化・正規化・フィルタリング・（必要に応じて）語彙制約適用後のトークン列
+        Token stream after tokenization, normalization, filtering, and
+        (when applicable) vocabulary restriction.
     """
     text = text.lower()
     candidates = TOKEN_EXTRACT_PATTERN.findall(text)

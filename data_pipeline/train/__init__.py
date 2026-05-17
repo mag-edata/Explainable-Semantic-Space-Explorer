@@ -1,1 +1,1 @@
-"""Word2Vecモデル学習ステージ（train_w2v）。"""
+"""Word2Vec model training stage (train_w2v)."""

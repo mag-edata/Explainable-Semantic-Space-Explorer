@@ -1,1 +1,1 @@
-"""共通基盤モジュール（token_definition / tokenizer）。"""
+"""Shared foundation modules (token_definition / tokenizer)."""

@@ -1,26 +1,25 @@
 """
 manifest.py
 
-入力:
-    data/embeddings/static_vectors.npy
-    data/embeddings/contextual_vectors.npy
+Inputs:
+    ``data/embeddings/static_vectors.npy``
+    ``data/embeddings/contextual_vectors.npy``
 
-出力:
-    data/manifest.json
+Outputs:
+    ``data/manifest.json``
 
-本モジュールは、
-data/embeddings/static_vectors.npy / contextual_vectors.npy の
-shape および dtype を読み取り、
-manifest.json を生成する。
+This module reads the shape and dtype of
+``data/embeddings/static_vectors.npy`` and ``contextual_vectors.npy``
+and generates ``manifest.json``.
 
-目的は、
-EmbeddingLoader._validate_against_manifest() による
-shape / dtype 整合チェックの基準を、
-実データから自動生成することにある。
+The goal is to auto-derive the reference values used for the shape /
+dtype consistency check performed by
+``EmbeddingLoader._validate_against_manifest()`` directly from the actual data.
 
-EmbeddingLoader が照合するキーは "static_vectors" と "contextual_vectors" の
-2 つのみ（vocab_pos 等は manifest に記載しなくても警告のみで動作）。
-本スクリプトは現行 manifest.json の構造を踏襲する。
+``EmbeddingLoader`` only checks the keys ``"static_vectors"`` and
+``"contextual_vectors"`` (other entries such as ``vocab_pos`` may be
+omitted from the manifest with only a warning). This script follows the
+structure of the current ``manifest.json``.
 """
 
 import json
@@ -28,7 +27,7 @@ from pathlib import Path
 
 import numpy as np
 
-# ---------- 入出力パス（このスクリプト固有）----------
+# ---------- I/O paths (specific to this script) ----------
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 DATA_DIR: Path = PROJECT_ROOT / "data"
 STATIC_VECTORS: Path = DATA_DIR / "embeddings" / "static_vectors.npy"
@@ -38,18 +37,18 @@ MANIFEST_JSON: Path = DATA_DIR / "manifest.json"
 
 def gen_manifest() -> dict:
     """
-    実データの .npy ファイルから shape / dtype を読み取り、
-    manifest.json として出力する dict を構築する。
+    Read shape / dtype from the actual ``.npy`` files and build the
+    dictionary to be written out as ``manifest.json``.
 
     Returns
     -------
     dict
-        manifest.json の内容。
+        Contents of ``manifest.json``.
 
     Raises
     ------
     FileNotFoundError
-        必要な .npy ファイルが見つからない場合。
+        If a required ``.npy`` file is missing.
     """
     if not STATIC_VECTORS.exists():
         raise FileNotFoundError(
