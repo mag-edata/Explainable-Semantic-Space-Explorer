@@ -3,18 +3,27 @@ ui/app.py
 =========
 Explainable Semantic Space Explorer — Streamlit UI
 
-単語埋め込み空間を可視化・分析し、「なぜその単語が近いのか」を説明するUI。
+A UI that visualizes and analyzes word embedding spaces and explains
+"why words are close to each other."
 
-設計方針:
-    - このファイルはロジックを持たない。core/ と transforms/ を呼ぶだけ。
-    - 計算・変換・判定はすべて core/transforms 層に委譲する。
-    - @st.cache_resource でエンジンを1回だけ初期化する（大規模ベクトルの再読み込み防止）。
+Design policy:
+    - This file holds no business logic. It only calls into ``core/``
+      and ``transforms/``.
+    - All computation, transformation, and decision-making is delegated
+      to the core / transforms layers.
+    - ``@st.cache_resource`` initializes the engines exactly once
+      (preventing reloads of the large vector matrices).
 
-タブ構成:
-    Tab 1: 類似語検索           — Top-K 類似語・品詞分布・コサイン計算式の表示
-    Tab 2: 静的 vs 文脈 比較   — 2モデルの比較・順位差・近傍安定性
-    Tab 3: 距離分布分析         — ヒストグラム・Z-score・分布統計
-    Tab 4: 投影・クラスタ       — PCA/UMAP 2D散布図・クラスタ色分け
+Tab layout:
+    Tab 1: Similar-word search — Top-K similar words, POS distribution,
+                                 and the cosine formula display
+    Tab 2: Static vs. contextual comparison — Compare both models,
+                                               rank differences,
+                                               neighborhood stability
+    Tab 3: Distance distribution analysis — Histogram, Z-score,
+                                            distribution statistics
+    Tab 4: Projection / clustering — PCA / UMAP 2D scatter plot,
+                                     cluster colorization
 """
 
 from __future__ import annotations
@@ -42,7 +51,7 @@ from core.similarity_engine import (
 
 logger = logging.getLogger(__name__)
 
-# ---------- ページ設定 ----------
+# ---------- Page configuration ----------
 
 st.set_page_config(
     page_title="Explainable Semantic Space Explorer",
@@ -51,22 +60,23 @@ st.set_page_config(
 )
 
 
-# ---------- キャッシュ付きリソース初期化 ----------
+# ---------- Cached resource initialization ----------
 
 
 @st.cache_resource(show_spinner="埋め込みベクトルを読み込み中...")
 def load_all_engines() -> tuple[EmbeddingLoader, SimilarityEngine, SimilarityEngine]:
-    """EmbeddingLoader と 2 つの SimilarityEngine を初期化する。
+    """Initialize ``EmbeddingLoader`` and the two ``SimilarityEngine`` instances.
 
-    @st.cache_resource により、アプリ起動後に1回だけ実行される。
-    83,823 語彙 × 300/384 次元のベクトルをメモリに保持するため、
-    再初期化を避けることで応答速度を確保する。
+    Thanks to ``@st.cache_resource``, this runs only once after the app
+    starts. The 83,823-word × 300 / 384-dim matrices stay resident in
+    memory, and reinitialization is avoided for fast response times.
 
     Returns:
-        tuple: (loader, static_engine, contextual_engine)
+        tuple: ``(loader, static_engine, contextual_engine)``.
 
     Raises:
-        EmbeddingLoaderError: 資産ファイルが見つからない、または整合エラーの場合。
+        EmbeddingLoaderError: If asset files are missing or an alignment
+            check fails.
     """
     data_root = Path("data")
     loader = EmbeddingLoader(data_root)
@@ -91,17 +101,17 @@ def load_all_engines() -> tuple[EmbeddingLoader, SimilarityEngine, SimilarityEng
     return loader, static_engine, contextual_engine
 
 
-# ---------- ヘルパー: SearchResult → DataFrame ----------
+# ---------- Helper: SearchResult → DataFrame ----------
 
 
 def results_to_df(scored: List[dict]) -> pd.DataFrame:
-    """attach_z_scores() の出力を st.dataframe 用 DataFrame に変換する。
+    """Convert the output of ``attach_z_scores()`` into a DataFrame for ``st.dataframe``.
 
     Args:
-        scored: Analyzer.attach_z_scores() の返り値リスト。
+        scored: List returned by ``Analyzer.attach_z_scores()``.
 
     Returns:
-        pd.DataFrame: 表示用 DataFrame。
+        pd.DataFrame: DataFrame ready for display.
     """
     rows = []
     for item in scored:
@@ -118,28 +128,28 @@ def results_to_df(scored: List[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# ---------- メイン ----------
+# ---------- Main ----------
 
 
 def main() -> None:
-    """アプリのエントリポイント。サイドバーと4タブを構築する。"""
+    """Application entry point. Builds the sidebar and the four tabs."""
 
     st.title("Explainable Semantic Space Explorer")
     st.caption(
         "静的埋め込み（Word2Vec）と文脈埋め込み（SBERT）の差異を数値で説明するツール"
     )
 
-    # --- エンジン読み込み ---
+    # --- Load engines ---
     try:
         loader, static_engine, contextual_engine = load_all_engines()
     except EmbeddingLoaderError as e:
         st.error(f"資産ファイルの読み込みに失敗しました: {e}")
         st.stop()
 
-    # 品詞ラベルを動的取得（POSFilter.group_by_pos は SearchResult が必要なため直接取得）
+    # Fetch POS labels dynamically (POSFilter.group_by_pos needs SearchResult, so read them directly)
     unique_pos: list[str] = sorted(set(loader.pos.tolist()))
 
-    # ---------- サイドバー ----------
+    # ---------- Sidebar ----------
     with st.sidebar:
         st.header("検索設定")
 
@@ -179,32 +189,32 @@ def main() -> None:
             step=1,
         )
 
-    # --- クエリが空の場合は待機 ---
+    # --- Wait when the query is empty ---
     if not query_word.strip():
         st.info("サイドバーからクエリ単語を入力してください。")
         return
 
     query_word = query_word.strip().lower()
 
-    # --- 語彙チェック ---
+    # --- Vocabulary check ---
     if query_word not in loader.vocab:
         st.error(
             f"「{query_word}」は語彙に存在しません。別の単語を試してください。"
         )
         return
 
-    # ---------- 4タブ ----------
+    # ---------- Four tabs ----------
     tab1, tab2, tab3, tab4 = st.tabs(
         ["類似語検索", "静的 vs 文脈 比較", "距離分布分析", "投影・クラスタ"]
     )
 
     # =========================================================
-    # Tab 1: 類似語検索
+    # Tab 1: Similar-word search
     # =========================================================
     with tab1:
         st.subheader(f"「{query_word}」の類似語 Top-{top_k}")
 
-        # core: 類似度検索 + 分布取得 + Z-score 付与
+        # core: similarity search + distribution retrieval + Z-score augmentation
         try:
             static_results: list[SearchResult] = static_engine.search(
                 query_word, top_k=top_k, pos_filter=pos_filter
@@ -216,11 +226,11 @@ def main() -> None:
         static_dist = static_engine.get_distance_distribution(query_word)
         scored = Analyzer.attach_z_scores(static_results, static_dist)
 
-        # 結果テーブル
+        # Result table
         df = results_to_df(scored)
         st.dataframe(df, use_container_width=True, hide_index=True)
 
-        # コサイン計算式（先頭結果）
+        # Cosine formula breakdown (top result)
         if scored:
             with st.expander("計算式の内訳（Top-1）を見る"):
                 exp = scored[0]["explanation"]
@@ -232,7 +242,7 @@ def main() -> None:
 
         st.divider()
 
-        # core: 品詞分布
+        # core: POS distribution
         pos_dist: dict[str, int] = POSFilter.pos_distribution(static_results)
         if pos_dist:
             st.subheader("品詞分布")
@@ -251,7 +261,7 @@ def main() -> None:
             )
             st.altair_chart(bar, use_container_width=True)
 
-        # core: 異品詞率
+        # core: heterogeneity rate
         query_pos: str = loader.pos[loader.vocab[query_word]]
         hetero: float = POSFilter.heterogeneity_rate(static_results, query_pos)
         st.metric(
@@ -261,12 +271,12 @@ def main() -> None:
         )
 
     # =========================================================
-    # Tab 2: 静的 vs 文脈 比較
+    # Tab 2: Static vs. contextual comparison
     # =========================================================
     with tab2:
         st.subheader(f"「{query_word}」— 静的 (Word2Vec) vs 文脈 (SBERT) 比較")
 
-        # core: 比較結果取得
+        # core: fetch the comparison result
         try:
             comparison = static_engine.compare(
                 query_word, other=contextual_engine, top_k=top_k
@@ -275,12 +285,12 @@ def main() -> None:
             st.error(str(e))
             return
 
-        # core: 近傍安定性スコア
+        # core: neighborhood stability score
         stability: float = Analyzer.neighborhood_stability(
             comparison.static_results, comparison.contextual_results
         )
 
-        # 集計メトリクス
+        # Aggregate metrics
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("共通語数", len(comparison.common_words))
         m2.metric("静的 固有語数", len(comparison.static_only))
@@ -293,7 +303,7 @@ def main() -> None:
 
         st.divider()
 
-        # 2列: 静的 Top-K / 文脈 Top-K
+        # Two columns: static Top-K / contextual Top-K
         col_s, col_b = st.columns(2)
 
         with col_s:
@@ -314,7 +324,7 @@ def main() -> None:
 
         st.divider()
 
-        # 順位差テーブル（両モデルに共通する単語）
+        # Rank-difference table (words shared by both models)
         if comparison.rank_diff:
             st.subheader("順位差（共通語）")
             rd_rows = [
@@ -325,19 +335,19 @@ def main() -> None:
             ]
             st.dataframe(pd.DataFrame(rd_rows), hide_index=True, use_container_width=True)
 
-        # 固有語バッジ
+        # Unique-word badges
         if comparison.static_only:
             st.write("**静的 固有語:**", "  ".join(f"`{w}`" for w in comparison.static_only))
         if comparison.contextual_only:
             st.write("**文脈 固有語:**", "  ".join(f"`{w}`" for w in comparison.contextual_only))
 
     # =========================================================
-    # Tab 3: 距離分布分析
+    # Tab 3: Distance distribution analysis
     # =========================================================
     with tab3:
         st.subheader(f"「{query_word}」の距離分布分析")
 
-        # core: 分布取得 + 統計拡張 + 比較
+        # core: distribution retrieval + stat enrichment + comparison
         static_dist = static_engine.get_distance_distribution(query_word)
         contextual_dist = contextual_engine.get_distance_distribution(query_word)
 
@@ -345,7 +355,7 @@ def main() -> None:
         contextual_stats = Analyzer.enrich_distribution(contextual_dist)
         dist_cmp = Analyzer.compare_distributions(query_word, static_dist, contextual_dist)
 
-        # モデル別メトリクス
+        # Per-model metrics
         col_s, col_b = st.columns(2)
         with col_s:
             st.write("**静的 (Word2Vec)**")
@@ -365,7 +375,7 @@ def main() -> None:
 
         st.divider()
 
-        # ヒストグラム（静的）
+        # Histogram (static)
         st.subheader("類似度分布ヒストグラム（静的）")
 
         hist_data = Analyzer.histogram(static_dist["histogram_data"], n_bins=50)
@@ -380,7 +390,7 @@ def main() -> None:
             }
         )
 
-        # Top-1 の縦線（rule）
+        # Vertical rule for the Top-1
         rule_df = pd.DataFrame({"x": [static_dist["top1_similarity"]]})
         base = alt.Chart(hist_df).mark_bar(opacity=0.7).encode(
             x=alt.X("類似度:Q", bin=False, title="コサイン類似度"),
@@ -395,7 +405,7 @@ def main() -> None:
         st.altair_chart((base + rule).properties(height=250), use_container_width=True)
         st.caption(f"赤い点線 = Top-1 類似度 ({static_dist['top1_similarity']:.4f})")
 
-        # 分布比較メトリクス
+        # Distribution comparison metrics
         st.divider()
         st.subheader("静的 vs 文脈 分布比較")
         c1, c2, c3 = st.columns(3)
@@ -404,12 +414,12 @@ def main() -> None:
         c3.metric("Z-score 差", f"{dist_cmp.z_score_diff:.3f}")
 
     # =========================================================
-    # Tab 4: 投影・クラスタ
+    # Tab 4: Projection / clustering
     # =========================================================
     with tab4:
         st.subheader(f"「{query_word}」周辺の 2D 投影（{projection_method.upper()}）")
 
-        # クエリ周辺 Top-K インデックスを取得（core: search）
+        # Fetch Top-K indices around the query (core: search)
         try:
             proj_results: list[SearchResult] = static_engine.search(
                 query_word, top_k=top_k
@@ -420,7 +430,7 @@ def main() -> None:
 
         query_idx: int = loader.vocab[query_word]
         neighbor_indices: list[int] = [r.index for r in proj_results]
-        # クエリ自身が neighbor に含まれていない場合のみ追加
+        # Only append the query itself if it isn't already a neighbor
         if query_idx not in neighbor_indices:
             target_indices = neighbor_indices + [query_idx]
         else:
@@ -431,21 +441,21 @@ def main() -> None:
 
         target_vectors: np.ndarray = loader.static_vectors[target_indices]
 
-        # analysis: クラスタリング（クエリ周辺のみ）
+        # analysis: clustering (restricted to the query's neighborhood)
         n_clust_actual = min(n_clusters, len(target_indices))
         clusterer = KMeansClusterer(n_clusters=n_clust_actual, seed=42)
         cluster_result = clusterer.fit(target_vectors)
 
-        # analysis: 投影（PCA または UMAP）
+        # analysis: projection (PCA or UMAP)
         projector = Projector(method=projection_method, seed=42)
         proj_result = projector.fit_transform(target_vectors)
         proj_result = projector.attach_clusters(proj_result, cluster_result.labels)
 
-        # 類似度マップ（クエリとの類似度）
+        # Similarity map (similarity to the query)
         sim_map: dict[str, float] = {r.word: r.similarity for r in proj_results}
-        sim_map[query_word] = 1.0  # クエリ自身
+        sim_map[query_word] = 1.0  # query itself
 
-        # 散布図データ
+        # Scatter-plot data
         coords = proj_result.coords_2d
         scatter_df = pd.DataFrame(
             {
@@ -458,7 +468,7 @@ def main() -> None:
             }
         )
 
-        # Altair 散布図
+        # Altair scatter plot
         axis_label = "PC" if projection_method == "pca" else "UMAP"
         scatter = (
             alt.Chart(scatter_df)
@@ -480,7 +490,7 @@ def main() -> None:
             .interactive()
         )
 
-        # 単語ラベル
+        # Word labels
         text = (
             alt.Chart(scatter_df)
             .mark_text(dy=-10, fontSize=11)
@@ -494,7 +504,7 @@ def main() -> None:
 
         st.altair_chart((scatter + text).properties(height=420), use_container_width=True)
 
-        # PCA 寄与率
+        # PCA contribution rates
         if projection_method == "pca" and proj_result.explained_variance:
             c1, c2 = st.columns(2)
             c1.metric(
@@ -508,7 +518,7 @@ def main() -> None:
 
         st.divider()
 
-        # クラスタ別単語一覧
+        # Per-cluster word listing
         st.subheader("クラスタ別の単語グループ")
         cluster_groups: dict[int, list[str]] = {}
         for word, label in zip(target_words, proj_result.cluster_labels.tolist()):
@@ -530,7 +540,7 @@ def main() -> None:
         )
 
 
-# ---------- エントリポイント ----------
+# ---------- Entry point ----------
 
 if __name__ == "__main__":
     main()
