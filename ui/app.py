@@ -28,6 +28,7 @@ Tab layout:
 
 from __future__ import annotations
 
+import difflib
 import logging
 from pathlib import Path
 from typing import List
@@ -44,12 +45,22 @@ from core.distance_metrics import DistanceMetrics
 from core.embedding_loader import EmbeddingLoader, EmbeddingLoaderError
 from core.pos_filter import POSFilter
 from core.similarity_engine import (
+    ComparisonResult,
     SearchResult,
     SimilarityEngine,
     UnknownWordError,
 )
 
 logger = logging.getLogger(__name__)
+
+# Curated example queries offered as one-click buttons in the sidebar (FR-23).
+EXAMPLE_WORDS: List[str] = ["bank", "apple", "mouse", "run", "paris", "dog"]
+
+
+def _use_example_word(word: str) -> None:
+    """Sidebar-button callback: load an example or suggested word into the
+    query box so the next rerun searches for it."""
+    st.session_state.query_box = word
 
 # ---------- Page configuration ----------
 
@@ -68,7 +79,7 @@ def load_all_engines() -> tuple[EmbeddingLoader, SimilarityEngine, SimilarityEng
     """Initialize ``EmbeddingLoader`` and the two ``SimilarityEngine`` instances.
 
     Thanks to ``@st.cache_resource``, this runs only once after the app
-    starts. The 83,823-word × 300 / 384-dim matrices stay resident in
+    starts. The vocabulary × 300 / 384-dim matrices stay resident in
     memory, and reinitialization is avoided for fast response times.
 
     Returns:
@@ -99,6 +110,59 @@ def load_all_engines() -> tuple[EmbeddingLoader, SimilarityEngine, SimilarityEng
 
     logger.info("All engines initialized")
     return loader, static_engine, contextual_engine
+
+
+# ---------- Cached per-query computations (FR-26) ----------
+#
+# Heavy engine calls are wrapped in ``@st.cache_data`` so that an identical
+# query is not recomputed across the four tabs (previously the distance
+# distribution was recomputed several times per query). The engine argument is
+# prefixed with ``_`` so Streamlit skips hashing it (it is a cached singleton);
+# an ``engine_tag`` string keeps the static and contextual engines distinct in
+# the cache key instead.
+
+
+@st.cache_data(show_spinner=False)
+def cached_search(
+    _engine: SimilarityEngine,
+    engine_tag: str,
+    query: str,
+    top_k: int,
+    pos_filter: str | None,
+) -> List[SearchResult]:
+    """Cache ``SimilarityEngine.search`` keyed on the query and parameters.
+
+    ``engine_tag`` participates in the cache key (it is not otherwise used in
+    the body) so the static and contextual engines do not collide.
+    """
+    logger.debug("cached_search miss: engine=%s query=%s top_k=%d", engine_tag, query, top_k)
+    return _engine.search(query, top_k=top_k, pos_filter=pos_filter)
+
+
+@st.cache_data(show_spinner=False)
+def cached_distribution(
+    _engine: SimilarityEngine,
+    engine_tag: str,
+    query: str,
+) -> dict:
+    """Cache ``SimilarityEngine.get_distance_distribution`` per (engine, query).
+
+    ``engine_tag`` participates in the cache key (it is not otherwise used in
+    the body) so the static and contextual engines do not collide.
+    """
+    logger.debug("cached_distribution miss: engine=%s query=%s", engine_tag, query)
+    return _engine.get_distance_distribution(query)
+
+
+@st.cache_data(show_spinner=False)
+def cached_compare(
+    _static_engine: SimilarityEngine,
+    _contextual_engine: SimilarityEngine,
+    query: str,
+    top_k: int,
+) -> ComparisonResult:
+    """Cache the static-vs-contextual comparison per (query, top_k)."""
+    return _static_engine.compare(query, other=_contextual_engine, top_k=top_k)
 
 
 # ---------- Helper: SearchResult → DataFrame ----------
@@ -151,26 +215,45 @@ def main() -> None:
     unique_pos: list[str] = sorted(set(loader.pos.tolist()))
 
     # ---------- Sidebar ----------
+    pos_options = ["ALL"] + unique_pos
+    # Source of truth for the search inputs; set once, then updated by the
+    # search form (on submit) or the example / suggestion buttons (on click).
+    st.session_state.setdefault("query_box", "king")
+    st.session_state.setdefault("top_k_box", 10)
+    st.session_state.setdefault("pos_box", "ALL")
+
     with st.sidebar:
         st.header("Search settings")
 
-        query_word: str = st.text_input(
-            "Query word",
-            value="king",
-            help="Enter an English word that exists in the vocabulary",
-        )
+        # Example queries (FR-23): one click loads a curated word.
+        st.caption("Try an example:")
+        example_cols = st.columns(3)
+        for i, word in enumerate(EXAMPLE_WORDS):
+            example_cols[i % 3].button(
+                word,
+                key=f"example_{word}",
+                on_click=_use_example_word,
+                args=(word,),
+                use_container_width=True,
+            )
 
-        top_k: int = st.slider(
-            "Top-K (number of results to show)",
-            min_value=1,
-            max_value=50,
-            value=10,
-            step=1,
-        )
-
-        pos_options = ["ALL"] + unique_pos
-        pos_selected: str = st.selectbox("POS filter", pos_options, index=0)
-        pos_filter: str | None = None if pos_selected == "ALL" else pos_selected
+        # Search form (FR-26): heavy computation runs only on submit, so
+        # editing the inputs no longer recomputes every tab on each keystroke.
+        with st.form("search_form"):
+            st.text_input(
+                "Query word",
+                key="query_box",
+                help="Enter an English word that exists in the vocabulary",
+            )
+            st.slider(
+                "Top-K (number of results to show)",
+                min_value=1,
+                max_value=50,
+                step=1,
+                key="top_k_box",
+            )
+            st.selectbox("POS filter", pos_options, key="pos_box")
+            st.form_submit_button("🔍 Search", use_container_width=True)
 
         st.divider()
         st.header("Projection / cluster settings")
@@ -190,18 +273,36 @@ def main() -> None:
             step=1,
         )
 
+    # Resolve the active (submitted / example-selected) search parameters.
+    query_word: str = st.session_state.query_box.strip().lower()
+    top_k: int = st.session_state.top_k_box
+    pos_selected: str = st.session_state.pos_box
+    pos_filter: str | None = None if pos_selected == "ALL" else pos_selected
+
     # --- Wait when the query is empty ---
-    if not query_word.strip():
-        st.info("Enter a query word in the sidebar.")
+    if not query_word:
+        st.info("Enter a query word or pick an example in the sidebar.")
         return
 
-    query_word = query_word.strip().lower()
-
-    # --- Vocabulary check ---
+    # --- Vocabulary check with close-word suggestions (FR-24) ---
     if query_word not in loader.vocab:
-        st.error(
-            f"\"{query_word}\" is not in the vocabulary. Please try a different word."
+        st.warning(f"\"{query_word}\" is not in the vocabulary.")
+        suggestions = difflib.get_close_matches(
+            query_word, list(loader.vocab.keys()), n=5, cutoff=0.6
         )
+        if suggestions:
+            st.write("Did you mean:")
+            suggestion_cols = st.columns(len(suggestions))
+            for col, word in zip(suggestion_cols, suggestions):
+                col.button(
+                    word,
+                    key=f"suggest_{word}",
+                    on_click=_use_example_word,
+                    args=(word,),
+                    use_container_width=True,
+                )
+        else:
+            st.caption("No close matches found — try a different spelling.")
         return
 
     # ---------- Four tabs ----------
@@ -217,14 +318,14 @@ def main() -> None:
 
         # core: similarity search + distribution retrieval + Z-score augmentation
         try:
-            static_results: list[SearchResult] = static_engine.search(
-                query_word, top_k=top_k, pos_filter=pos_filter
+            static_results: list[SearchResult] = cached_search(
+                static_engine, "static", query_word, top_k, pos_filter
             )
         except UnknownWordError as e:
             st.error(str(e))
             return
 
-        static_dist = static_engine.get_distance_distribution(query_word)
+        static_dist = cached_distribution(static_engine, "static", query_word)
         scored = Analyzer.attach_z_scores(static_results, static_dist)
 
         # Result table
@@ -286,8 +387,8 @@ def main() -> None:
 
         # core: fetch the comparison result
         try:
-            comparison = static_engine.compare(
-                query_word, other=contextual_engine, top_k=top_k
+            comparison = cached_compare(
+                static_engine, contextual_engine, query_word, top_k
             )
         except UnknownWordError as e:
             st.error(str(e))
@@ -318,7 +419,7 @@ def main() -> None:
             st.write("**Static (Word2Vec) Top-K**")
             static_scored = Analyzer.attach_z_scores(
                 comparison.static_results,
-                static_engine.get_distance_distribution(query_word),
+                cached_distribution(static_engine, "static", query_word),
             )
             st.dataframe(results_to_df(static_scored), hide_index=True)
 
@@ -326,7 +427,7 @@ def main() -> None:
             st.write("**Contextual (SBERT) Top-K**")
             contextual_scored = Analyzer.attach_z_scores(
                 comparison.contextual_results,
-                contextual_engine.get_distance_distribution(query_word),
+                cached_distribution(contextual_engine, "contextual", query_word),
             )
             st.dataframe(results_to_df(contextual_scored), hide_index=True)
 
@@ -356,8 +457,8 @@ def main() -> None:
         st.subheader(f"Distance distribution analysis for \"{query_word}\"")
 
         # core: distribution retrieval + stat enrichment + comparison
-        static_dist = static_engine.get_distance_distribution(query_word)
-        contextual_dist = contextual_engine.get_distance_distribution(query_word)
+        static_dist = cached_distribution(static_engine, "static", query_word)
+        contextual_dist = cached_distribution(contextual_engine, "contextual", query_word)
 
         static_stats = Analyzer.enrich_distribution(static_dist)
         contextual_stats = Analyzer.enrich_distribution(contextual_dist)
@@ -441,8 +542,8 @@ def main() -> None:
 
         # Fetch Top-K indices around the query (core: search)
         try:
-            proj_results: list[SearchResult] = static_engine.search(
-                query_word, top_k=top_k
+            proj_results: list[SearchResult] = cached_search(
+                static_engine, "static", query_word, top_k, None
             )
         except UnknownWordError as e:
             st.error(str(e))
