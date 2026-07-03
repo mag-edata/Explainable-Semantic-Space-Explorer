@@ -1,7 +1,7 @@
 {
   "static_vectors": {
     "shape": [
-      83823,
+      40335,
       300
     ],
     "dtype": "float32",
@@ -10,7 +10,7 @@
   },
   "contextual_vectors": {
     "shape": [
-      83823,
+      40335,
       384
     ],
     "dtype": "float32",
