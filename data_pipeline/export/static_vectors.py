@@ -87,8 +87,16 @@ def export_static_vectors() -> None:
             "Verify the consistency between the vocab and the Word2Vec model."
         )
 
-    # Convert to a numpy array and save (dtype matches EmbeddingLoader's expected float32)
+    # Convert to a numpy array (dtype matches EmbeddingLoader's expected float32)
     vectors_array = np.stack(vectors).astype(np.float32)
+
+    # L2-normalize so the static space matches the (already normalized)
+    # contextual space (roadmap item 1.4). Cosine similarity and the resulting
+    # rankings are unchanged, but both models now show symmetric norm terms in
+    # the cosine breakdown, keeping the explainability display consistent.
+    norms = np.linalg.norm(vectors_array, axis=1, keepdims=True)
+    norms[norms == 0.0] = 1.0  # guard against zero vectors (avoid divide-by-zero)
+    vectors_array = (vectors_array / norms).astype(np.float32)
 
     STATIC_VECTORS.parent.mkdir(parents=True, exist_ok=True)
     np.save(STATIC_VECTORS, vectors_array)

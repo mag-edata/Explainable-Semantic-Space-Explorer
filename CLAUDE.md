@@ -86,8 +86,8 @@ DOCS/
 | 項目 | 状態 | 備考 |
 |------|------|------|
 | 方針確定・要件定義 v2.0 改訂 | ✅ 完了（2026-07-03） | ユーザー像を「NLP学習者」に再定義 |
-| Phase A-1：語彙curation＋整合修正＋seed固定 | 🟡 コード実装済／**要 資産再生成** | `curate.py` 新設、`merge.py`配線、`static_vectors.py`で1.1整合修正、`train_w2v.py` seed=42/workers=1。再生成はREADME手順で mag が実行 |
-| Phase A-2：POS再生成是正(1.2)・正規化統一(1.4) | ⬜ 未着手 | 再学習不要で単体再生成可のため後回し |
+| Phase A-1：語彙curation＋整合修正＋seed固定 | ✅ 完了（2026-07-03） | `curate.py`（WordNet+stopword membership・最小長3・短縮形ノイズ除外）、`merge.py`配線、`static_vectors.py`で1.1整合修正、`train_w2v.py` seed=42/workers=1、`manifest.py` training_date自動記入。再生成・検証済（83,823→**40,032語**、全ファイル行整合、資産約230MB→約110MB）。commit `9d5cab4`＋`4209881` |
+| Phase A-2：POS再生成是正(1.2)・正規化統一(1.4) | ✅ 完了（2026-07-03、要コミット） | 1.2=`vocab_pos.py`をWordNet由来の品詞導出に変更（辞書順`pos_tag`廃止。king誤判定verb→noun等を修正、any 625→50）。1.4=`static_vectors.py`でL2正規化しcontextualと対称化（cos順位不変を実証）。ローカル再生成・検証済。再生成データはgitignore、manifest差分なし＝コミット対象はコードのみ |
 | Phase A-3：UX是正（例示・OOV候補・判定文・form化） | ⬜ 未着手 | |
 | Phase B：文入力モード | ⬜ 未着手 | Phase A 完了後 |
 | Phase C：デプロイ・README改訂 | ⬜ 未着手 | Phase A/B 完了後 |
