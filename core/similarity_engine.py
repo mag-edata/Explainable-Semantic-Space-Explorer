@@ -254,13 +254,60 @@ class SimilarityEngine:
             query_word, query_idx, top_k, pos_filter,
         )
 
-        results: List[SearchResult] = self._build_results(query_vec, query_idx, top_k)
+        results: List[SearchResult] = self._build_results(
+            query_vec, top_k, exclude_idx=query_idx
+        )
 
         if pos_filter is not None:
             results = [r for r in results if r.pos_tag == pos_filter]
             logger.debug(
                 "POS filter applied: pos_filter=%s -> %d entries", pos_filter, len(results)
             )
+
+        return self._assign_pos_ranks(results)
+
+    def search_by_vector(
+        self,
+        query_vec: np.ndarray,
+        top_k: int = 10,
+        pos_filter: str | None = None,
+    ) -> List[SearchResult]:
+        """Search for the Top-K vocabulary words most similar to a raw vector.
+
+        Unlike :meth:`search`, the query is an arbitrary vector — for example
+        an in-context vector produced by ``inference.context_encoder`` — rather
+        than a vocabulary word, so no self-reference is excluded from the
+        results.
+
+        Args:
+            query_vec:  Query vector, shape (D,), in the same space as this
+                        engine's vectors.
+            top_k:      Maximum number of similar words to return (default 10).
+            pos_filter: Restrict results to the given POS, or ``None`` for all.
+
+        Returns:
+            list[SearchResult]: Results sorted by similarity (descending).
+
+        Raises:
+            InvalidTopKError: If ``top_k`` is less than 1.
+            ValueError:       If ``query_vec`` dimensionality does not match the
+                engine's embedding dimension.
+        """
+        self._validate_top_k(top_k)
+
+        query_vec = np.asarray(query_vec)
+        if query_vec.shape[-1] != self._vectors.shape[1]:
+            raise ValueError(
+                f"query_vec dim ({query_vec.shape[-1]}) does not match "
+                f"engine dim ({self._vectors.shape[1]})"
+            )
+
+        results: List[SearchResult] = self._build_results(
+            query_vec, top_k, exclude_idx=None
+        )
+
+        if pos_filter is not None:
+            results = [r for r in results if r.pos_tag == pos_filter]
 
         return self._assign_pos_ranks(results)
 
@@ -434,8 +481,8 @@ class SimilarityEngine:
     def _build_results(
         self,
         query_vec: np.ndarray,
-        query_idx: int,
         top_k: int,
+        exclude_idx: int | None = None,
     ) -> List[SearchResult]:
         """Build a list of ``SearchResult`` objects from a query vector.
 
@@ -445,15 +492,17 @@ class SimilarityEngine:
         ``_assign_pos_ranks()``.
 
         Args:
-            query_vec: Embedding vector of the query word, shape (D,).
-            query_idx: Index of the query word (used to exclude self-reference).
-            top_k:     Number of results to return.
+            query_vec:   Embedding vector of the query, shape (D,).
+            top_k:       Number of results to return.
+            exclude_idx: Vocabulary index to exclude (the query word's own
+                         index for :meth:`search`); ``None`` excludes nothing,
+                         used when the query is an external vector.
 
         Returns:
             list[SearchResult]: List sorted by similarity (descending), with
             ``pos_rank`` left at 0.
         """
-        indices, similarities = self._search_single(query_vec, query_idx, top_k)
+        indices, similarities = self._search_single(query_vec, top_k, exclude_idx)
 
         results: List[SearchResult] = []
         for rank, (idx, sim) in enumerate(zip(indices, similarities), start=1):
@@ -477,16 +526,16 @@ class SimilarityEngine:
     def _search_single(
         self,
         query_vec: np.ndarray,
-        query_idx: int,
         top_k: int,
+        exclude_idx: int | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Compute cosine similarities between the query and the whole matrix, returning the Top-K.
 
         Computation is delegated entirely to
         ``DistanceMetrics.cosine_similarity_batch()``.
-        The self-reference (the query word itself) is replaced with ``-inf``
-        to exclude it.
-        If ``top_k`` exceeds the vocabulary size, it is clipped down.
+        When ``exclude_idx`` is given (the query word's own index), that entry
+        is replaced with ``-inf`` so it is excluded from the Top-K.
+        If ``top_k`` exceeds the available vocabulary size, it is clipped down.
 
         Optimization:
             ``np.argpartition`` narrows down the Top-K in O(N), and only
@@ -494,9 +543,9 @@ class SimilarityEngine:
             sorting the entire vocabulary in O(N log N).
 
         Args:
-            query_vec: The query vector, shape (D,).
-            query_idx: Index of the query word (excluded from results).
-            top_k:     Number of results to return.
+            query_vec:   The query vector, shape (D,).
+            top_k:       Number of results to return.
+            exclude_idx: Index to exclude from results, or ``None`` to keep all.
 
         Returns:
             tuple[np.ndarray, np.ndarray]:
@@ -510,11 +559,14 @@ class SimilarityEngine:
             query_vec, self._vectors
         )
 
-        # Set the self-reference to -inf so it is excluded from Top-K.
-        all_sims[query_idx] = -np.inf
+        # Optionally exclude the self-reference by setting it to -inf.
+        available: int = self._n_vocab
+        if exclude_idx is not None:
+            all_sims[exclude_idx] = -np.inf
+            available = self._n_vocab - 1
 
-        # Clip top_k to the effective vocabulary size (N-1, after self-exclusion).
-        effective_k: int = min(top_k, self._n_vocab - 1)
+        # Clip top_k to the number of available entries.
+        effective_k: int = min(top_k, available)
 
         # Use argpartition to fetch Top-K indices in O(N) (order is unspecified).
         top_k_unordered: np.ndarray = np.argpartition(all_sims, -effective_k)[-effective_k:]

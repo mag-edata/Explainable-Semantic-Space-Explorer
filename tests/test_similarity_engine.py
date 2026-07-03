@@ -233,5 +233,49 @@ class TestWordToIndex(unittest.TestCase):
             self.engine.word_to_index("unknown_word_xyz")
 
 
+# ---------------------------------------------------------------------------
+# search_by_vector()
+# ---------------------------------------------------------------------------
+
+class TestSearchByVector(unittest.TestCase):
+    """Tests for ``SimilarityEngine.search_by_vector`` (used by sentence-context mode)."""
+
+    def test_returns_topk_sorted_descending(self) -> None:
+        engine, _, vectors = _make_engine(n=6, dim=4, seed=1)
+        results = engine.search_by_vector(vectors[2].copy(), top_k=3)
+        self.assertEqual(len(results), 3)
+        sims = [r.similarity for r in results]
+        self.assertEqual(sims, sorted(sims, reverse=True))
+
+    def test_includes_matching_word_unlike_search(self) -> None:
+        """An external vector equal to a vocab vector returns that word as the
+        top match (self is not excluded, unlike ``search``)."""
+        engine, _, vectors = _make_engine(n=6, dim=4, seed=1)
+        results = engine.search_by_vector(vectors[2].copy(), top_k=1)
+        self.assertEqual(results[0].word, "word2")
+        self.assertAlmostEqual(results[0].similarity, 1.0, places=5)
+
+    def test_can_return_all_words(self) -> None:
+        """Without self-exclusion, up to N results are available."""
+        engine, _, vectors = _make_engine(n=6, dim=4, seed=1)
+        results = engine.search_by_vector(vectors[0].copy(), top_k=6)
+        self.assertEqual(len(results), 6)
+
+    def test_pos_filter_applied(self) -> None:
+        engine, _, vectors = _make_engine(n=6, dim=4, seed=1)
+        results = engine.search_by_vector(vectors[0].copy(), top_k=6, pos_filter="NOUN")
+        self.assertTrue(all(r.pos_tag == "NOUN" for r in results))
+
+    def test_dim_mismatch_raises(self) -> None:
+        engine, _, _ = _make_engine(n=6, dim=4, seed=1)
+        with self.assertRaises(ValueError):
+            engine.search_by_vector(np.ones(3, dtype=np.float32), top_k=3)
+
+    def test_invalid_top_k_raises(self) -> None:
+        engine, _, vectors = _make_engine(n=6, dim=4, seed=1)
+        with self.assertRaises(InvalidTopKError):
+            engine.search_by_vector(vectors[0].copy(), top_k=0)
+
+
 if __name__ == "__main__":
     unittest.main()
