@@ -28,6 +28,19 @@ from core.similarity_engine import ComparisonResult, SearchResult
 
 logger = logging.getLogger(__name__)
 
+# Verdict tiers for SimilarityVerdict, keyed by the fraction of the vocabulary
+# that is at least as similar (``top_fraction``). Evaluated in ascending order;
+# the first threshold the value falls under wins. Below all thresholds falls
+# back to ``_VERDICT_FALLBACK``.
+_VERDICT_TIERS: List[tuple[float, str]] = [
+    (0.001, "unusually close"),
+    (0.01, "very close"),
+    (0.05, "notably close"),
+    (0.25, "moderately close"),
+    (0.50, "around the vocabulary average"),
+]
+_VERDICT_FALLBACK: str = "below the vocabulary average"
+
 
 # ---------------------------------------------------------------------------
 # Custom exceptions
@@ -95,6 +108,29 @@ class HistogramData:
     n_bins: int
     data_min: float
     data_max: float
+
+
+@dataclass
+class SimilarityVerdict:
+    """Plain-language interpretation of a similarity score (roadmap FR-25).
+
+    Turns a raw cosine similarity into an answer to "is this actually high?"
+    by locating it within the whole-vocabulary distribution.
+
+    Attributes:
+        similarity:    The similarity score being interpreted.
+        z_score:       Standard deviations above the vocabulary mean.
+        top_fraction:  Fraction of the vocabulary at least this similar,
+                       in [0.0, 1.0] (smaller = more of an outlier).
+        label:         Short tier label (e.g. "very close").
+        text:          Full one-line verdict ready for display.
+    """
+
+    similarity: float
+    z_score: float
+    top_fraction: float
+    label: str
+    text: str
 
 
 @dataclass
@@ -196,6 +232,75 @@ class Analyzer:
             q25=q25,
             q75=q75,
             n_samples=int(data.size),
+        )
+
+    @staticmethod
+    def interpret_similarity(
+        similarity: float,
+        distribution: dict,
+    ) -> SimilarityVerdict:
+        """Interpret a similarity score in plain language (roadmap FR-25).
+
+        Answers "is this similarity actually high?" by placing the score
+        within the whole-vocabulary distribution: it reports how large a
+        fraction of the vocabulary is at least this similar (``top_fraction``)
+        and how many standard deviations above the mean it sits (``z_score``),
+        then assigns a short tier label.
+
+        Args:
+            similarity:   The cosine similarity to interpret.
+            distribution: Return value of
+                ``SimilarityEngine.get_distance_distribution()``.
+                Required keys: ``mean``, ``std``, ``histogram_data``.
+
+        Returns:
+            SimilarityVerdict: The interpretation, including a ready-to-display
+            ``text`` such as ``"Top 0.3% of 40,032 words (Z=+4.1) — very close"``.
+
+        Raises:
+            KeyError:              If a required key is missing.
+            InsufficientDataError: If ``histogram_data`` is empty.
+        """
+        required_keys = {"mean", "std", "histogram_data"}
+        missing = required_keys - distribution.keys()
+        if missing:
+            raise KeyError(f"distribution is missing required keys: {missing}")
+
+        data: np.ndarray = np.asarray(distribution["histogram_data"], dtype=float)
+        if data.size == 0:
+            raise InsufficientDataError(
+                "histogram_data is empty; cannot interpret a similarity"
+            )
+
+        mean: float = distribution["mean"]
+        std: float = distribution["std"]
+        z_score: float = (similarity - mean) / std if std > 0.0 else 0.0
+
+        # Fraction of the vocabulary at least this similar (ties included).
+        top_fraction: float = float(np.count_nonzero(data >= similarity)) / data.size
+
+        label: str = _VERDICT_FALLBACK
+        for threshold, tier_label in _VERDICT_TIERS:
+            if top_fraction <= threshold:
+                label = tier_label
+                break
+
+        top_pct: str = "<0.1%" if top_fraction < 0.001 else f"{top_fraction * 100:.1f}%"
+        text: str = (
+            f"Top {top_pct} of {data.size:,} words (Z={z_score:+.1f}) — {label}"
+        )
+
+        logger.debug(
+            "interpret_similarity: sim=%.4f, top_fraction=%.5f, z=%.2f, label=%s",
+            similarity, top_fraction, z_score, label,
+        )
+
+        return SimilarityVerdict(
+            similarity=float(similarity),
+            z_score=z_score,
+            top_fraction=top_fraction,
+            label=label,
+            text=text,
         )
 
     @staticmethod

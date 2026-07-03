@@ -231,6 +231,13 @@ def main() -> None:
         df = results_to_df(scored)
         st.dataframe(df, use_container_width=True, hide_index=True)
 
+        # Plain-language verdict for the Top-1 neighbor (FR-25):
+        # answers "is this similarity actually high?" in words.
+        if scored:
+            top = scored[0]
+            verdict = Analyzer.interpret_similarity(top["similarity"], static_dist)
+            st.success(f"**{top['word']}** — {verdict.text}")
+
         # Cosine formula breakdown (top result)
         if scored:
             with st.expander("Show formula breakdown (Top-1)"):
@@ -365,6 +372,12 @@ def main() -> None:
             st.metric("Top-1 similarity", f"{static_stats.top1_similarity:.4f}")
             st.metric("Z-score", f"{static_stats.z_score:.3f}")
             st.metric("Median", f"{static_stats.median:.4f}")
+            st.caption(
+                "Top-1 verdict — "
+                + Analyzer.interpret_similarity(
+                    static_stats.top1_similarity, static_dist
+                ).text
+            )
 
         with col_b:
             st.write("**Contextual (SBERT)**")
@@ -373,6 +386,12 @@ def main() -> None:
             st.metric("Top-1 similarity", f"{contextual_stats.top1_similarity:.4f}")
             st.metric("Z-score", f"{contextual_stats.z_score:.3f}")
             st.metric("Median", f"{contextual_stats.median:.4f}")
+            st.caption(
+                "Top-1 verdict — "
+                + Analyzer.interpret_similarity(
+                    contextual_stats.top1_similarity, contextual_dist
+                ).text
+            )
 
         st.divider()
 

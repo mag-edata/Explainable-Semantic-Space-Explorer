@@ -31,6 +31,7 @@ from core.analyzer import (
     DistributionStats,
     HistogramData,
     InsufficientDataError,
+    SimilarityVerdict,
 )
 from core.similarity_engine import SearchResult
 
@@ -364,6 +365,72 @@ class TestNeighborhoodStability(unittest.TestCase):
         a = [_make_search_result("x", 1, 0.5)]
         with self.assertRaises(ValueError):
             Analyzer.neighborhood_stability(a, [])
+
+
+# ---------------------------------------------------------------------------
+# interpret_similarity()
+# ---------------------------------------------------------------------------
+
+class TestInterpretSimilarity(unittest.TestCase):
+    """Tests for ``Analyzer.interpret_similarity()`` (FR-25 verdicts)."""
+
+    def setUp(self) -> None:
+        # 1000 evenly spaced similarities in [0.000, 0.999].
+        self.data = [i / 1000 for i in range(1000)]
+        self.dist = _make_distribution(histogram_data=self.data)
+
+    def test_returns_similarity_verdict(self) -> None:
+        """The return value is a ``SimilarityVerdict``."""
+        verdict = Analyzer.interpret_similarity(0.5, self.dist)
+        self.assertIsInstance(verdict, SimilarityVerdict)
+
+    def test_top_outlier_is_unusually_close(self) -> None:
+        """A value only ~0.1% of the vocabulary reaches is 'unusually close'."""
+        verdict = Analyzer.interpret_similarity(0.999, self.dist)
+        self.assertLessEqual(verdict.top_fraction, 0.001)
+        self.assertEqual(verdict.label, "unusually close")
+
+    def test_very_close_tier(self) -> None:
+        """~0.5% of the vocabulary at least this similar → 'very close'."""
+        verdict = Analyzer.interpret_similarity(0.995, self.dist)
+        self.assertEqual(verdict.label, "very close")
+
+    def test_mid_value_is_around_average(self) -> None:
+        """The median value lands in the 'around the vocabulary average' tier."""
+        verdict = Analyzer.interpret_similarity(0.5, self.dist)
+        self.assertAlmostEqual(verdict.top_fraction, 0.5, places=3)
+        self.assertEqual(verdict.label, "around the vocabulary average")
+
+    def test_z_score_formula(self) -> None:
+        """``z_score`` equals ``(similarity - mean) / std``."""
+        verdict = Analyzer.interpret_similarity(0.8, self.dist)
+        expected = (0.8 - self.dist["mean"]) / self.dist["std"]
+        self.assertAlmostEqual(verdict.z_score, expected, places=5)
+
+    def test_text_mentions_count_and_label(self) -> None:
+        """The display text includes the vocabulary size and the tier label."""
+        verdict = Analyzer.interpret_similarity(0.999, self.dist)
+        self.assertIn("1,000 words", verdict.text)
+        self.assertIn(verdict.label, verdict.text)
+
+    def test_missing_key_raises(self) -> None:
+        """A missing required key raises ``KeyError``."""
+        dist = _make_distribution(histogram_data=self.data)
+        del dist["std"]
+        with self.assertRaises(KeyError):
+            Analyzer.interpret_similarity(0.5, dist)
+
+    def test_empty_histogram_raises(self) -> None:
+        """Empty ``histogram_data`` raises ``InsufficientDataError``."""
+        dist = _make_distribution(histogram_data=[])
+        with self.assertRaises(InsufficientDataError):
+            Analyzer.interpret_similarity(0.5, dist)
+
+    def test_zero_std_gives_zero_z(self) -> None:
+        """When ``std == 0`` the Z-score is safely 0.0 (zero-division guard)."""
+        dist = {"mean": 0.5, "std": 0.0, "histogram_data": [0.5, 0.5, 0.5]}
+        verdict = Analyzer.interpret_similarity(0.5, dist)
+        self.assertEqual(verdict.z_score, 0.0)
 
 
 if __name__ == "__main__":
