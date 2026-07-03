@@ -30,7 +30,8 @@ from data_pipeline.vocab.curate import is_english_word
 # ---------------------------------------------------------------------------
 
 # Words that our fake WordNet "knows" (i.e. return a non-empty synset list).
-_FAKE_WORDNET: set[str] = {"dog", "running", "cat", "happy", "quickly"}
+# Includes short entries ("go", "ax", "aa") to exercise the length floor.
+_FAKE_WORDNET: set[str] = {"dog", "running", "cat", "happy", "quickly", "go", "ax", "aa", "ay"}
 
 # A small stopword set (function words that WordNet does not cover).
 _FAKE_STOPWORDS: set[str] = {"the", "of", "he", "she", "not"}
@@ -71,6 +72,25 @@ class TestIsEnglishWord(unittest.TestCase):
         for junk in ("aabach", "aad", "aacta", "xyzzq"):
             with self.subTest(word=junk):
                 self.assertFalse(self._decide(junk))
+
+    def test_short_word_in_wordnet_is_dropped_by_length_floor(self) -> None:
+        """A short (<3 char) word is dropped even if WordNet knows it,
+        unless it is a stopword or on the short allowlist."""
+        self.assertTrue("aa" in _FAKE_WORDNET)  # guard: WordNet "knows" it
+        self.assertFalse(self._decide("aa"))
+        self.assertFalse(self._decide("ay"))
+
+    def test_short_allowlist_word_bypasses_length_floor(self) -> None:
+        """A short word on the allowlist is kept when WordNet knows it."""
+        self.assertTrue(self._decide("go"))
+        self.assertTrue(self._decide("ax"))
+
+    def test_short_word_needs_membership_even_on_allowlist(self) -> None:
+        """The allowlist only exempts from the length floor; a short word
+        still needs WordNet (or stopword) membership. 'id' is on the
+        allowlist but absent from the fake WordNet here, so it is dropped."""
+        self.assertFalse("id" in _FAKE_WORDNET)  # guard
+        self.assertFalse(self._decide("id"))
 
     def test_non_lowercase_alpha_form_is_dropped(self) -> None:
         """Anything that is not lowercase ASCII alphabetic is dropped,

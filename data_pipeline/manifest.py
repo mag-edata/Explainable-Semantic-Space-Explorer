@@ -23,6 +23,7 @@ structure of the current ``manifest.json``.
 """
 
 import json
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -33,6 +34,25 @@ DATA_DIR: Path = PROJECT_ROOT / "data"
 STATIC_VECTORS: Path = DATA_DIR / "embeddings" / "static_vectors.npy"
 CONTEXTUAL_VECTORS: Path = DATA_DIR / "embeddings" / "contextual_vectors.npy"
 MANIFEST_JSON: Path = DATA_DIR / "manifest.json"
+W2V_MODEL: Path = PROJECT_ROOT / "models" / "w2v_brown10_simplewiki10_sg_300d_w5.model"
+
+
+def get_training_date() -> str:
+    """Derive the Word2Vec training date from the model file.
+
+    The model file's last-modified time corresponds to when training
+    finished, so it is used as the ``training_date`` recorded in the
+    manifest. This avoids a hand-maintained placeholder.
+
+    Returns
+    -------
+    str
+        Training date formatted as ``YYYY-MM-DD``, or ``"unknown"`` when the
+        model file is absent (e.g. the manifest is generated before training).
+    """
+    if not W2V_MODEL.exists():
+        return "unknown"
+    return date.fromtimestamp(W2V_MODEL.stat().st_mtime).isoformat()
 
 
 def gen_manifest() -> dict:
@@ -67,7 +87,7 @@ def gen_manifest() -> dict:
             "shape": list(static_arr.shape),
             "dtype": str(static_arr.dtype),
             "source": "Word2Vec trained on Brown + SimpleWiki",
-            "training_date": "YYYY-MM-DD",
+            "training_date": get_training_date(),
         },
         "contextual_vectors": {
             "shape": list(contextual_arr.shape),

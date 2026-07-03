@@ -29,13 +29,27 @@ Curation rules:
            so pedagogically useful variants such as "running" are kept.
          - NLTK English stopwords: high-value function words (he, she, of,
            the, not, ...) that WordNet omits but which are legitimate,
-           frequent vocabulary worth exploring.
+           frequent vocabulary worth exploring. Contraction fragments that
+           NLTK includes in that list ("ll", "ve", "couldn", ...) are first
+           removed via ``_STOPWORD_NOISE`` so they are not kept as words.
 
-    Words that pass neither membership test are dropped as noise.
+    3. Length floor: words shorter than ``_MIN_LENGTH`` characters are
+       dropped, because WordNet also lists many 2-letter abbreviations and
+       symbols ("aa", "ab", "ac", "au", "ax", ...) that are noise for a
+       word-exploration tool. Two exceptions bypass the floor:
+         - stopwords (rule 2 already keeps legitimate short function words
+           such as "a", "an", "as", "at", "be", "he", "we"), and
+         - ``_SHORT_ALLOWLIST``, a small set of common short *content* words
+           ("go", "ox", "ad", ...) that would otherwise be lost.
+
+    Words that pass neither membership test, or that fall below the length
+    floor without an exception, are dropped as noise. Note that WordNet
+    intentionally retains many proper nouns / place names (e.g. "aachen",
+    "montmartre"); these are kept, as they make for reasonable neighbors.
 
     The *frequency* component of FR-18 is enforced upstream by the per-corpus
     ``min_freq`` threshold in ``gen_brown()`` / ``gen_wiki()``; curation here
-    adds the lexical-membership component.
+    adds the lexical-membership and length components.
 
 Reproducibility:
     Curation is deterministic (membership tests + ``sorted``), so re-running
@@ -52,6 +66,26 @@ from data_pipeline._common.nltk_setup import ensure_nltk_resource
 # Lowercase ASCII alphabetic only. Upstream normalization already lowercases
 # and restricts to [a-zA-Z]+; after lowering, the valid form is [a-z]+.
 _LOWER_ALPHA_PATTERN = re.compile(r"^[a-z]+$")
+
+# Words shorter than this are dropped unless they are stopwords or appear in
+# _SHORT_ALLOWLIST. WordNet lists many 2-letter abbreviations/symbols as noise.
+_MIN_LENGTH = 3
+
+# Common short content words worth keeping despite the length floor. They must
+# still pass the WordNet membership test, so this only exempts them from length.
+_SHORT_ALLOWLIST = frozenset({"go", "ok", "ox", "ax", "ad", "id", "pi", "hi"})
+
+# NLTK's English stopword list includes contraction fragments that are not real
+# words ("ll", "ve", "re", "couldn", "wasn", ...). They must not be kept via the
+# stopword pass, so they are subtracted from the stopword set before curation.
+# Any of these that happen to be genuine words (e.g. "won", "haven") are still
+# re-admitted through the ordinary WordNet membership test.
+_STOPWORD_NOISE = frozenset({
+    "d", "ll", "m", "o", "re", "s", "t", "ve", "y", "ma",
+    "ain", "aren", "couldn", "didn", "doesn", "hadn", "hasn", "haven",
+    "isn", "mightn", "mustn", "needn", "shan", "shouldn", "wasn", "weren",
+    "won", "wouldn",
+})
 
 
 def _ensure_resources() -> None:
@@ -99,6 +133,8 @@ def is_english_word(
         return False
     if word in stopword_set:
         return True
+    if len(word) < _MIN_LENGTH and word not in _SHORT_ALLOWLIST:
+        return False
     return bool(synset_lookup(word))
 
 
@@ -116,7 +152,7 @@ def curate_vocab(words: Iterable[str]) -> List[str]:
         Sorted, de-duplicated vocabulary that passes curation.
     """
     _ensure_resources()
-    stopword_set: Set[str] = set(stopwords.words("english"))
+    stopword_set: Set[str] = set(stopwords.words("english")) - _STOPWORD_NOISE
     kept = {w for w in words if is_english_word(w, stopword_set, wordnet.synsets)}
     return sorted(kept)
 
