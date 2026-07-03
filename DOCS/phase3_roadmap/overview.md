@@ -1,9 +1,22 @@
 # Improvement Overview
 
 **Created:** 2026-05-08
+**Updated:** 2026-07-03
 **Targets:** `core/`, `transforms/`, `ui/`, `data_pipeline/`, `tests/`, `DOCS/`, `data/manifest.json`
 
 This document centrally manages the issues and tasks of the repository.
+
+---
+
+## Phase-3 Policy (fixed 2026-07-03)
+
+On 2026-07-03 the project purpose was redefined (requirements definition v2.0): the portfolio purpose was retired and the system is now developed as a real product for **NLP learners**. Work proceeds in stages; the items in this roadmap map onto the stages as follows.
+
+| Stage | Contents | Related roadmap items |
+|-------|----------|-----------------------|
+| **Phase A — data quality & UX repair** | Vocabulary curation + full asset regeneration (extends 8.5; resolves 1.1 as a by-product), context-valid POS regeneration (1.2), Word2Vec seed fix (2.1), normalization unification (1.4), cross-tab caching + form-based execution (3.4, 8.4), guided UX (new: example-query buttons, OOV suggestions, plain-language verdicts). *Conditional:* corpus expansion (e.g., WikiText-103) only if neighborhood quality remains insufficient after curation | 8.5, 1.1, 1.2, 2.1, 1.4, 3.4, 8.4 |
+| **Phase B — sentence-context mode** | In-context token vector extraction, two-sentence comparison for sense separation, comparison-first screen restructure | New — see requirements v2.0 FR-20–22, FR-27 |
+| **Phase C — release** | Streamlit Cloud deployment (3.1, 9.2; assets shrink after Phase A), user-facing README rewrite | 3.1, 9.2 |
 
 ---
 
