@@ -1,16 +1,16 @@
 {
   "static_vectors": {
     "shape": [
-      40335,
+      40032,
       300
     ],
     "dtype": "float32",
     "source": "Word2Vec trained on Brown + SimpleWiki",
-    "training_date": "YYYY-MM-DD"
+    "training_date": "2026-07-03"
   },
   "contextual_vectors": {
     "shape": [
-      40335,
+      40032,
       384
     ],
     "dtype": "float32",
