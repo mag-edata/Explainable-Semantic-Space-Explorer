@@ -19,11 +19,19 @@ characteristics into a general-purpose vocabulary set that avoids
 excessive dependence on any specific domain, balancing stability and
 coverage in synonym search, word embeddings, and classification /
 generation models.
+
+The merged union is then passed through ``curate_vocab`` (requirements
+v2.0, FR-18 / FR-19), which drops non-words, abbreviation noise, and
+proper-noun fragments by requiring lexical-resource membership. The
+returned list is the *candidate* vocabulary; it is finalized (restricted
+to words that also have a Word2Vec vector) later in
+``export/static_vectors.py`` to guarantee index alignment.
 """
 
 import json
 from pathlib import Path
 
+from data_pipeline.vocab.curate import curate_vocab
 from data_pipeline.vocab.gen_brown import gen_brown
 from data_pipeline.vocab.gen_wiki import gen_wiki
 
@@ -37,12 +45,13 @@ def merge() -> list[str]:
     Returns
     -------
     list[str]
-        Sorted vocabulary list combining Brown and Simple Wikipedia.
+        Sorted, curated vocabulary list combining Brown and Simple
+        Wikipedia. Non-words and noise are removed by ``curate_vocab``.
     """
     brown_vocab = gen_brown()
     wiki_vocab = gen_wiki()
 
-    merged_vocab = sorted(brown_vocab | wiki_vocab)
+    merged_vocab = curate_vocab(brown_vocab | wiki_vocab)
     return merged_vocab
 
 

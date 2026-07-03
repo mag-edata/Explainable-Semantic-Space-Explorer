@@ -86,6 +86,10 @@ DOCS/
 | 項目 | 状態 | 備考 |
 |------|------|------|
 | 方針確定・要件定義 v2.0 改訂 | ✅ 完了（2026-07-03） | ユーザー像を「NLP学習者」に再定義 |
-| Phase A：データ品質・UX是正 | ⬜ 未着手 | 詳細は `DOCS/phase3_roadmap/overview.md` |
+| Phase A-1：語彙curation＋整合修正＋seed固定 | 🟡 コード実装済／**要 資産再生成** | `curate.py` 新設、`merge.py`配線、`static_vectors.py`で1.1整合修正、`train_w2v.py` seed=42/workers=1。再生成はREADME手順で mag が実行 |
+| Phase A-2：POS再生成是正(1.2)・正規化統一(1.4) | ⬜ 未着手 | 再学習不要で単体再生成可のため後回し |
+| Phase A-3：UX是正（例示・OOV候補・判定文・form化） | ⬜ 未着手 | |
 | Phase B：文入力モード | ⬜ 未着手 | Phase A 完了後 |
 | Phase C：デプロイ・README改訂 | ⬜ 未着手 | Phase A/B 完了後 |
+
+> **Phase A-1 の再生成手順**：README「Full Data Pipeline Setup」の順序どおり再実行（`merge → train_w2v → static_vectors → contextual_vectors → vocab_pos → manifest`）。NLTK は brown/tagger に加え **wordnet・stopwords** の取得が必要。`static_vectors` が `vocab.json` を確定するので順序厳守。

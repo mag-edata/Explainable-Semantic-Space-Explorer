@@ -18,8 +18,16 @@ vocabulary so that inference no longer depends on gensim, enabling fast
 and consistent vocabulary / vector lookups.
 
 The vocabulary actually saved is restricted to words for which a vector
-can be retrieved from the Word2Vec model, guaranteeing index alignment
-between the vocabulary array and the vector matrix.
+can be retrieved from the Word2Vec model. This step is the point at which
+``vocab.json`` is *finalized*: the file is rewritten to exactly the words
+that have a static vector, so that the vocabulary array, the static vector
+matrix, and the downstream contextual / POS exports (which read
+``vocab.json``) all stay index-aligned. This closes the count-mismatch
+risk that could otherwise raise ``IndexAlignmentError`` at startup.
+
+Because this script finalizes ``vocab.json``, it MUST run before
+``export/contextual_vectors.py`` and ``export/vocab_pos.py`` (this is the
+order documented in the README setup section).
 """
 
 import json
@@ -85,9 +93,16 @@ def export_static_vectors() -> None:
     STATIC_VECTORS.parent.mkdir(parents=True, exist_ok=True)
     np.save(STATIC_VECTORS, vectors_array)
 
+    # Finalize vocab.json to exactly the words that have a static vector so
+    # that every downstream asset stays index-aligned with this matrix.
+    dropped = len(vocab) - len(valid_words)
+    with VOCAB_JSON.open("w", encoding="utf-8") as f:
+        json.dump({"vocab": valid_words}, f, indent=2, ensure_ascii=False)
+
     print("Static word vector matrix export complete")
     print(f"- output: {STATIC_VECTORS}")
     print(f"- count: {len(valid_words)}")
+    print(f"- vocab.json finalized (dropped {dropped} words lacking a Word2Vec vector)")
 
 
 if __name__ == "__main__":

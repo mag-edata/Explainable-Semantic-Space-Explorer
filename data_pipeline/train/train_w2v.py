@@ -121,13 +121,18 @@ def load_corpus() -> List[List[str]]:
 if __name__ == "__main__":
     corpus = load_corpus()
 
+    # Reproducibility (CONST-06 / NFR-01): a fixed seed plus a single worker
+    # is required for deterministic Word2Vec training — multi-worker training
+    # is inherently non-deterministic. For a fully reproducible run, also set
+    # PYTHONHASHSEED=0 in the environment (see README setup).
     model = Word2Vec(
         sentences=corpus,
         vector_size=300,
         window=5,
         min_count=5,
-        workers=4,
+        workers=1,
         sg=1,
+        seed=42,
     )
 
     W2V_MODEL.parent.mkdir(parents=True, exist_ok=True)

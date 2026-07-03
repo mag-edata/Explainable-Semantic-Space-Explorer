@@ -138,16 +138,27 @@ python -m streamlit run ui/app.py
 
 ```bash
 # Download NLTK data (saved to data/nltk_data/)
-python -c "import nltk; nltk.download('brown', download_dir='data/nltk_data'); nltk.download('averaged_perceptron_tagger_eng', download_dir='data/nltk_data')"
+# brown / tagger: corpus and POS tagging. wordnet / stopwords: vocabulary curation.
+python -c "import nltk; [nltk.download(p, download_dir='data/nltk_data') for p in ['brown', 'averaged_perceptron_tagger_eng', 'wordnet', 'stopwords']]"
 
-# Generate asset files (requires HuggingFace access)
-python -m data_pipeline.vocab.merge                   # → data/metadata/vocab.json
+# Generate asset files (requires HuggingFace access).
+# Run in this exact order: static_vectors finalizes vocab.json, so it must
+# precede contextual_vectors and vocab_pos to keep all assets index-aligned.
+# PYTHONHASHSEED=0 makes the Word2Vec training fully reproducible (CONST-06).
+export PYTHONHASHSEED=0
+python -m data_pipeline.vocab.merge                   # → data/metadata/vocab.json (curated candidate vocab)
 python -m data_pipeline.train.train_w2v               # → models/w2v_brown10_simplewiki10_sg_300d_w5.model
-python -m data_pipeline.export.static_vectors         # → data/embeddings/static_vectors.npy
+python -m data_pipeline.export.static_vectors         # → data/embeddings/static_vectors.npy (+ finalizes vocab.json)
 python -m data_pipeline.export.contextual_vectors     # → data/embeddings/contextual_vectors.npy
 python -m data_pipeline.export.vocab_pos              # → data/metadata/vocab_pos.npy
 python -m data_pipeline.manifest                      # → data/manifest.json
 ```
+
+> **Vocabulary curation (v2.0):** `merge` now filters the corpus union down to
+> real English words via WordNet + stopword membership (see
+> `data_pipeline/vocab/curate.py`), removing non-words and proper-noun
+> fragments. Re-running the pipeline above regenerates all assets against the
+> curated, index-aligned vocabulary.
 
 ### Verified Environment
 
